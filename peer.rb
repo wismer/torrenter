@@ -5,8 +5,8 @@ module Torrenter
 
     # for non outside vars use the @ and remove them from
 
-    attr_reader :socket, :peer
-    attr_accessor :piece_index, :status, :buffer, :shaken, :ready
+    attr_reader :socket, :peer, :sha_list, :piece_len
+    attr_accessor :piece_index, :status, :buffer, :shaken, :ready, :bitfield, :blocks, :request_sent
 
 
     def initialize(peer, peer_info={})
@@ -19,6 +19,9 @@ module Torrenter
       @shaken      = false
       @status      = false
       @ready       = false
+      @bitfield    = false
+      @blocks      = nil
+      @request_sent = false
     end
 
     def connect
@@ -40,6 +43,10 @@ module Torrenter
       end
     end
 
+    def block_retrieved?
+      peer.buffer[13..-1].bytesize == peer.buffer[0..3].unpack("N*").first
+    end
+
     def handshake
       "#{PROTOCOL}#{@info_hash}#{PEER_ID}"
     end
@@ -48,7 +55,8 @@ module Torrenter
       
     end
 
-    def piece_verified?(piece, index)
+    def piece_verified?(index)
+      piece = peer.buffer[13..-1]
       Digest::SHA1.digest(piece) == @sha_list[index]
     end
 
@@ -70,6 +78,10 @@ module Torrenter
 
     def pack_request(i)
       [i].pack("I>")
+    end
+
+    def block_started?
+      buffer.empty?
     end
 
     def select_piece

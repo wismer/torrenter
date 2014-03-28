@@ -85,11 +85,12 @@ module Torrenter
     end
 
     def establish_reactor
-      react = Reactor.new(peers)
+      react = Reactor.new(peers, sha_list.size, piece_length)
       react.connect
       begin 
         react.message_reactor
       rescue Errno::ECONNRESET
+      rescue Errno::EPIPE
       end
     end
 

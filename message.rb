@@ -13,8 +13,9 @@ module Message
 
     def receive_msg(opts={})
       begin
-        opts[:socket].read(opts[:msg])
+        Timeout::timeout(10) { opts[:socket].read(opts[:msg]) }
       rescue IO::EAGAINWaitReadable
+      rescue Timeout::Error
       end
     end
 
@@ -39,6 +40,14 @@ module Message
 
     def incomplete?(msg, type)
       
+    end
+
+    def nonblock_read(opts={})
+      begin
+        opts[:socket].read_nonblock(opts[:msg], opts[:buffer])
+      rescue IO::EAGAINWaitReadable
+
+      end
     end
 
     # EXPERIMENTAL
