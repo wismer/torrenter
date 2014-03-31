@@ -84,18 +84,16 @@ module Torrenter
       peer_list.map { |peer| Peer.new(peer, peer_info) }
     end
 
+    def file_list
+      stream['info']['files'] || stream['info']
+    end
+
     def establish_reactor
-      react = Reactor.new(peers, sha_list.size, piece_length)
+      react = Reactor.new(peers, sha_list.size, piece_length, file_list)
       react.connect
       begin 
         react.message_reactor
-      rescue Errno::ECONNRESET
-      rescue Errno::EPIPE
       end
-    end
-
-    def status
-      
     end
   end
 end
@@ -103,7 +101,7 @@ end
 
 
 
-file    = 'sky.torrent'
+file    = ARGV[0]
 stream  = BEncode.load_file(file)
 peers   = Torrenter::TorrentReader.new(stream)
 peers.uri_hash
