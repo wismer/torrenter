@@ -59,7 +59,14 @@ module Torrenter
     end
 
     def seperate_data_dump_into_files
-      
+      offset = 0
+      @file_list.each do |file|
+        length = file['length']
+        offset += file['length']
+        data = File.open("#{file['path'].join}", 'a+')
+        data << IO.read("data", length, offset)
+        data.close
+      end
     end
 
     def total_file_size
@@ -68,32 +75,51 @@ module Torrenter
 
     def download_pieces
       loop do
-        @connected.each { |peer| @connected.delete(peer) if peer.status == :finished }
-        break if File.size('data') == total_file_size # this will break when a peer is downloading the last piece. BAD.
+        break if @connected.all? { |peer| peer.status == :finished } # this will break when a peer is downloading the last piece. BAD.
         @connected.each do |peer|
           # needs to be specific...
           if peer.buffer.bytesize == (BLOCK + 13)
-            put_buffered_data_into_block_map(peer)
+            # parse messages by the piece message length (or for have msgs)
+            peer.block_map << peer.buffer.byteslice(13..-1)
+            peer.buffer = ''
+            puts "offset: #{peer.block_count * BLOCK} for #{peer.peer[:ip]} and the current piece is #{peer.current_piece} - file size is now at #{File.size('data') / 1024}"
+
+            peer.block_count += 1
+            peer.request_sent = false
           end
-      
+
           if peer.block_map.size == @blocks
-            completed_piece(peer)
-          end
-
-          if peer.current_piece.nil?
+            peer.pack_data
+            peer.request_sent = false
+            peer.block_count = 0
             evaluate_index(peer)
+            puts "#{peer.peer[:ip]} ---- current_piece: #{peer.current_piece}"
           end
 
-          if !peer.request_sent
-            send_request_message(peer)
-          end
+          unless peer.status == :finished
+            if peer.current_piece.nil?
+              evaluate_index(peer)
+            end
 
-          peek_for_keep_alive(peer)
+            if !peer.request_sent
+              msg = if peer.block_count < @blocks
+                      request_msg(peer.current_piece, peer.block_count * BLOCK)
+                    else
+                      raise "Current Piece: #{peer.current_piece} offset: #{peer.block_count * BLOCK}"
+                      request_msg(peer.current_piece, 0)
+                    end
+              peer.socket.sendmsg(msg)
+              peer.request_sent = true
+            end
 
-          data = buffered_data(peer)
+            # peek for other messages that may come through the pipeline
 
-          if data != ''
-            peer.buffer << data
+            peek_for_keep_alive(peer)
+            
+            data = buffered_data(peer)
+            if data != ''
+              peer.buffer << data
+            end
           end
           # I have to save the point at which it does not have a full block
           # and also save the index point. When either of them have been fulfilled
@@ -107,33 +133,6 @@ module Torrenter
           # can be evaluated.
         end
       end  
-    end
-
-    def put_buffered_data_into_block_map(peer)
-      peer.block_map << peer.buffer.byteslice(13..-1)
-      peer.buffer = ''
-      # puts "offset: #{peer.block_count * BLOCK} for #{peer.peer[:ip]} and the current piece is #{peer.current_piece} - file size is now at #{File.size('data') / 1024}"
-
-      peer.block_count += 1
-      peer.request_sent = false
-    end
-
-    def completed_piece(peer)
-      peer.pack_data
-      peer.request_sent = false
-      peer.block_count = 0
-      evaluate_index(peer)
-      puts "#{peer.peer[:ip]} ---- current_piece: #{peer.current_piece}"
-    end
-
-    def send_request_message(peer)
-      msg = if peer.block_count < @blocks
-              request_msg(peer.current_piece, peer.block_count * BLOCK)
-            else
-              request_msg(peer.current_piece, 0)
-            end
-      peer.socket.sendmsg(msg)
-      peer.request_sent = true
     end
 
     def peek_for_keep_alive(peer)
@@ -152,6 +151,8 @@ module Torrenter
     end
 
     def buffered_data(peer)
+
+      # msg = msg || BLOCK
       begin
         peer.socket.recv_nonblock(BLOCK + 13)
       rescue IO::EAGAINWaitReadable
@@ -178,15 +179,24 @@ module Torrenter
     end
 
     def evaluate_index(peer)
+
+
+      # rewrite - confusing - 
       # NEEDS TO BE CHANGED
       # it won't be an accurate method
       piece = peer.piece_index.index(true)
-      peer.current_piece = piece
-      if @master_index[piece]
-        # find a new one
-        peer.piece_index[piece] = false
+      if piece
+        peer.current_piece = piece
+        if @master_index[piece] == true
+          # find a new one
+          peer.piece_index[piece] = false
+          evaluate_index(peer)
+        else
+          @master_index[piece] = true
+        end
       else
-        @master_index[piece] = true
+        peer.status = :finished
+        binding.pry
       end
     end
 
