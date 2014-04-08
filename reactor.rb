@@ -1,13 +1,13 @@
 module Torrenter
-  BLOCK = 2**14
   class Reactor
+    include Torrenter
     def initialize(peers, list_size, piece_length, file_list)
       @peers        = peers
-      @messager     = Message::Messenger.new
       @master_index = Array.new(list_size) { false }
       @blocks       = piece_length / BLOCK
       @data_file    = File.open('data', 'a+')
       @file_list    = file_list
+      @dormant      = []
     end
 
     # makes the peers connect
@@ -38,9 +38,6 @@ module Torrenter
       end
     end
 
-    def interested(peer)
-      @messager.interest(:send => true, :msg => "\x00\x00\x00\x01\x02", :socket => peer.socket)
-    end
 
     # sends the handshake messages. 
 
@@ -179,8 +176,6 @@ module Torrenter
     end
 
     def evaluate_index(peer)
-
-
       # rewrite - confusing - 
       # NEEDS TO BE CHANGED
       # it won't be an accurate method
@@ -201,28 +196,13 @@ module Torrenter
     end
 
     def keep_alive
-      @connected.each { |peer| peer.socket.sendmsg_nonblock("\x00\x00\x00\x00") }
+      @connected.each { |peer| peer.send_data(KEEP_ALIVE) }
     end
 
     def parse_bitfields
       @connected.each do |peer|
-        loop do
-          break if peer.buffer.empty?
-          length  = msg_payload(peer, (0..3))
-          if length == 0
-            break
-            # keep alive
-            # do nothing.
-          else
-            if length > peer.buffer.bytesize
-              binding.pry
-            end
-            id = msg_payload(peer)
-            peer.payload(length, id)
-            puts "ID: #{id} LENGTH: #{length} for peer: #{peer.peer[:ip]}"
-          end
-        end
-        peer.bitfield = true
+        peer.parse_bitfield
+        @connected.delete(peer) if !peer.bitfield_pass?
       end
     end
 
@@ -230,21 +210,24 @@ module Torrenter
       @connected.each { |peer| peer.buffer = '' }
     end
 
+    def delete_peer(peer)
+      @dormant << @connected.delete(peer)
+    end
+
     def msg_payload(peer, range=0)
       peer.buffer.slice!(range).unpack("C*").inject { |x,y| x + y }
     end
 
     def parse_handshakes
-      @connected.each do |peer|
-        @messager.nonblock_read(:msg => BLOCK, :socket => peer.socket, :buffer => peer.buffer)
-
-        if peer.hash_match?
-          peer.shaken = true
-          peer.buffer = peer.buffer.byteslice(68..-1)
-        else
-          @connected.delete(peer)
-        end
+      @connected.each do |peer| 
+        peer.hash_match? ? peer.shaken = true : @dormant << @connected.delete(peer)
       end
+    end
+
+    def parse_have_msgs
+      @connected.each do |peer|
+        if peer.buffer.empty?
+          
     end
   end
 end
