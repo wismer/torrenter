@@ -9,21 +9,21 @@ require 'json'
 require_relative 'peer.rb'
 require_relative 'message.rb'
 require_relative 'reactor.rb'
-require_relative 'active_connect.rb'
+require_relative 'message_types'
 
 module Torrenter
-  PEER_ID  = '-MATT16548651231825-'
-
   class TorrentReader
     attr_reader :stream
     def initialize(stream)
       @stream   = stream
       @uri      = URI(stream['announce'])
+      @list     = stream['announce-list'].flatten.map { |u| URI(u) }
     end
 
     # url gets reformatted to include query parameters
 
     def raw_peers
+      binding.pry
       BEncode.load(Net::HTTP.get(@uri))['peers'].bytes
     end
 
@@ -81,7 +81,7 @@ module Torrenter
     end
 
     def peers
-      peer_list.map { |peer| Peer.new(peer, peer_info) }
+      peer_list.map { |peer| Peer.new(peer, file_list, peer_info) }
     end
 
     def file_list
@@ -89,7 +89,7 @@ module Torrenter
     end
 
     def establish_reactor
-      react = Reactor.new(peers, sha_list.size, piece_length, file_list)
+      react = Reactor.new(peers, sha_list, piece_length, file_list)
       react.connect
       begin 
         react.message_reactor
@@ -105,5 +105,4 @@ file    = ARGV[0]
 stream  = BEncode.load_file(file)
 peers   = Torrenter::TorrentReader.new(stream)
 peers.uri_hash
-
 peers.establish_reactor
