@@ -6,10 +6,6 @@ require 'pry'
 require 'fileutils'
 require 'json'
 
-require_relative 'peer.rb'
-require_relative 'message.rb'
-require_relative 'reactor.rb'
-require_relative 'message_types'
 
 module Torrenter
   class TorrentReader
