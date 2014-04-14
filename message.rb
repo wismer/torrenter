@@ -106,7 +106,7 @@ module Torrenter
   end
 
   def modify_index(master)
-    master.each_with_index do |v,i|
+    master.each_with_index do |v,i|e
       if v == :downloaded
         @piece_index[i] = :downloaded
       end
@@ -154,11 +154,11 @@ module Torrenter
               evaluate_index(master)
             end
             request_message
-          elsif (File.size('data') + piece_size) == total_file_size
+          elsif (File.size(DATA_DUMP) + piece_size) == total_file_size
             pack_file(master)
-            File.open('data', 'w') { |io| io << '' }
+            File.open(DATA_DUMP, 'w') { |io| io << '' }
           else
-            request_message(total_file_size - (File.size('data') + piece_size))
+            request_message(total_file_size - (File.size(DATA_DUMP) + piece_size))
           end
         else
           recv_data(@length)
@@ -175,7 +175,7 @@ module Torrenter
   end
 
   def data_remaining
-    ((total_file_size - (File.size('data') + piece_size))) / BLOCK
+    ((total_file_size - (File.size(DATA_DUMP) + piece_size))) / BLOCK
   end
 
   def piece_size
@@ -189,7 +189,7 @@ module Torrenter
   def pack_file(master)
     data = @block_map.join
     if piece_verified?(data)
-      IO.write('data', data, @index * @offset)
+      IO.write(DATA_DUMP, data, @index * @offset)
       master[@index] = :downloaded
       @piece_index[@index] = :downloaded
       @block_map = []

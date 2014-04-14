@@ -17,13 +17,12 @@ module Torrenter
     def initialize(stream)
       @stream   = stream
       @uri      = URI(stream['announce'])
-      @list     = stream['announce-list'].flatten.map { |u| URI(u) }
+      # @list     = stream['announce-list'].flatten.map { |u| URI(u) }
     end
 
     # url gets reformatted to include query parameters
 
     def raw_peers
-      binding.pry
       BEncode.load(Net::HTTP.get(@uri))['peers'].bytes
     end
 
@@ -99,10 +98,3 @@ module Torrenter
 end
 
 
-
-
-file    = ARGV[0]
-stream  = BEncode.load_file(file)
-peers   = Torrenter::TorrentReader.new(stream)
-peers.uri_hash
-peers.establish_reactor

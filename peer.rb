@@ -22,32 +22,33 @@ module Torrenter
     end
 
     def connect
-      if @attempts < 1
-        puts "\nConnecting to IP: #{peer[:ip]} PORT: #{peer[:port]}"
-        begin
-          Timeout::timeout(2) { @socket = TCPSocket.new(peer[:ip], peer[:port]) }
-        rescue Timeout::Error
-          puts "Timed out."
-        rescue Errno::EADDRNOTAVAIL
-          puts "Address not available."
-        rescue Errno::ECONNREFUSED
-          puts "Connection refused."
-        rescue Errno::ECONNRESET
-          puts "bastards."
-        end
+      puts "\nConnecting to IP: #{peer[:ip]} PORT: #{peer[:port]}"
+      begin
+        Timeout::timeout(2) { @socket = TCPSocket.new(peer[:ip], peer[:port]) }
+      rescue Timeout::Error
+        puts "Timed out."
+      rescue Errno::EADDRNOTAVAIL
+        puts "Address not available."
+      rescue Errno::ECONNREFUSED
+        puts "Connection refused."
+      rescue Errno::ECONNRESET
+        puts "bastards."
+      end
 
-        if @socket
-          @socket.write(handshake)
-          @status = true
-        else
-          @status = false
-          @attempts += 1
-        end
+      if @socket
+        @socket.write(handshake)
+        @status = true
+      else
+        @status = false
       end
     end
 
     def handshake
       "#{PROTOCOL}#{@info_hash}#{PEER_ID}"
+    end
+
+    def reconnecter(peer, &block)
+      
     end
 
     def msg_num
