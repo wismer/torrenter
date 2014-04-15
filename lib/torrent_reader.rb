@@ -1,7 +1,6 @@
 require 'socket'
 require 'digest/sha1'
 require 'bencode'
-require 'net/http'
 require 'pry'
 require 'fileutils'
 require 'json'
@@ -12,14 +11,44 @@ module Torrenter
     attr_reader :stream
     def initialize(stream)
       @stream   = stream
-      @uri      = URI(stream['announce']) 
-      @list     = stream['announce-list'].flatten.map { |u| URI(u) }
+      @uri      = URI(stream['announce'])
+      if stream['announce-list']
+        @list     = stream['announce-list'].flatten
+      end
     end
 
     # url gets reformatted to include query parameters
 
     def raw_peers
-      BEncode.load(Net::HTTP.get(@uri))['peers'].bytes
+      begin
+        BEncode.load(Net::HTTP.get(@uri))['peers'].bytes
+      rescue
+        announce_urls
+      end
+    end
+
+    def announce_urls
+      udp_urls.each do |site|
+        site, port = site.gsub(/^udp\:\/\//, '').split(/\:/)
+        udp = UDPConnection.new(site, port)
+      end
+    end
+
+    def udp_urls
+      @list.select { |site| site =~ /^udp/ }
+    end
+
+    def create_udp_socket(site)
+      port = site.gsub!(/\:\d+$/, '').to_i
+      addr = Addrinfo.getaddrinfo(site, port)
+
+      addr.ip_unpack
+    end
+
+    def announce_list
+      announce_urls.map do |site|
+        UDPConnection.new(site) if site.is_a?(Array)
+      end
     end
 
     def uri_hash
@@ -85,7 +114,6 @@ module Torrenter
 
     def establish_reactor
       react = Reactor.new(peers, sha_list, piece_length, file_list)
-      react.connect
       begin 
         react.message_reactor
       end

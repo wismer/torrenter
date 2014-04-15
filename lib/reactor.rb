@@ -1,7 +1,6 @@
 module Torrenter
   class Reactor
     include Torrenter
-
     def initialize(peers, sha_list, piece_length, file_list)
       @peers        = peers
       @master_index = Array.new(sha_list.size) { :free }
@@ -9,6 +8,7 @@ module Torrenter
       @file_list    = file_list
       @piece_length = piece_length
       @sha_list     = sha_list
+      @server       = TCPServer.new("127.0.0.1", 28561)
     end
 
     def delayed_connect
@@ -42,18 +42,31 @@ module Torrenter
       modify_index
       @peers.each { |peer| peer.connect }
       loop do
+        check_for_queries
         break if @master_index.all? { |piece| piece == :downloaded }
         @peers.each do |peer|
-
-          if peer.status
-            peer.state(@master_index, @blocks)
-          elsif Time.now.to_i % 60 == 0
+          if peer.socket
+            peer.state(@master_index, @blocks) # unless peer.piece_index.all? { |piece| piece == :downloaded }
+          elsif Time.now.to_i % 500 == 0
             peer.connect
           end
         end
+        # display_state
       end
-
       seperate_data_dump_into_files
+    end
+
+    def check_for_queries
+      begin
+        tcp = @server.accept_nonblock
+      rescue IO::EAGAINWaitReadable
+
+      end
+      binding.pry if tcp
+    end
+
+    def display_state
+      File.open('data.json', 'w') { |io| io << JSON.generate( { indices: @master_index } ) }
     end
 
     def seperate_data_dump_into_files

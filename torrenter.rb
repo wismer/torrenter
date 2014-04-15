@@ -1,8 +1,10 @@
+require 'net/http'
 require_relative 'lib/peer.rb'
 require_relative 'lib/message.rb'
 require_relative 'lib/reactor.rb'
 require_relative 'lib/message_types'
 require_relative 'lib/torrent_reader.rb'
+require_relative 'lib/udp.rb'
 
 module Torrenter
   def self.start(file)
@@ -17,3 +19,4 @@ end
 file    = ARGV[0]
 $data_dump = "#{file}-data"
 Torrenter.start(file)
+
