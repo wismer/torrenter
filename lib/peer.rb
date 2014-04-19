@@ -18,7 +18,15 @@ module Torrenter
       @block_map       = []
       @offset          = 0
       @file_list       = file_list
-      @total_file_size = file_list['length'] || file_list.map { |f| f['length'] }.inject { |x, y| x + y }
+      @status          = false
+    end
+
+    def total_file_size
+      if @file_list.is_a?(Array)
+        @file_list.map { |f| f['length'] }.inject { |x, y| x + y }
+      else
+        @file_list['length']
+      end
     end
 
     def connect

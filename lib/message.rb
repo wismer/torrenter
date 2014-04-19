@@ -38,6 +38,8 @@ module Torrenter
       ''
     rescue IO::EAGAINWaitReadable
       ''
+    rescue Errno::ETIMEDOUT
+      disconnect_peer
     end
   end
 
@@ -155,11 +157,12 @@ module Torrenter
             else
               request_message
             end
-          elsif (File.size($data_dump) + piece_size) == @total_file_size
+          elsif (File.size($data_dump) + piece_size) == total_file_size
             pack_file(master)
             File.open($data_dump, 'w') { |io| io << '' }
           else
-            request_message(@total_file_size - (File.size($data_dump) + piece_size))
+            binding.pry
+            request_message(total_file_size - (File.size($data_dump) + piece_size))
           end
         else
           recv_data(@length - buffer.bytesize)
@@ -175,7 +178,7 @@ module Torrenter
   end
 
   def data_remaining
-    ((@total_file_size - (File.size($data_dump) + piece_size))) / BLOCK
+    ((total_file_size - (File.size($data_dump) + piece_size))) / BLOCK
   end
 
   def piece_size
@@ -194,6 +197,7 @@ module Torrenter
       master[@index] = :downloaded
       @piece_index[@index] = :downloaded
     else
+      binding.pry
       master[@index] = :free
       @piece_index[@index] = :downloaded
 

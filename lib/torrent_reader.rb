@@ -104,7 +104,7 @@ module Torrenter
         :info_hash => sha,
         :peer_id   => PEER_ID,
         :left      => piece_length,
-        :pieces    => stream['info']['files']
+        :pieces    => stream['info']['files'] || stream['info']['name']
       }
     end
 

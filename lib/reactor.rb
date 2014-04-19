@@ -6,9 +6,13 @@ module Torrenter
       @master_index = Array.new(sha_list.size) { :free }
       @blocks       = piece_length / BLOCK
       @file_list    = file_list
-      @data_size    = file_list['length'] || file_list.map { |f| f['length'] }.inject { |x, y| x + y }
       @piece_length = piece_length
       @sha_list     = sha_list
+      @data_size    = if file_list.is_a?(Array)
+                        file_list.map { |f| f['length'] }.inject { |x, y| x + y }
+                      else
+                        file_list['length']
+                      end
       # @server       = TCPServer.new("127.0.0.1", 28561)
     end
 
@@ -28,13 +32,14 @@ module Torrenter
 
     def modify_index
       IO.write($data_dump, '', 0) unless File.exists?($data_dump)
-      off = 0
-      until off > @data_size
-        data = IO.read($data_dump, @piece_length, off) || ''
+      file_size = File.size($data_dump)
+      0.upto(@sha_list.size - 1) do |n|
+        data = IO.read($data_dump, @piece_length, n * @piece_length) || ''
         index = off / @piece_length
         @master_index[index] = :downloaded if Digest::SHA1.digest(data) == @sha_list[index]
         off += @piece_length
       end
+      puts "#{@master_index.count(:downloaded)} pieces are downloaded already."
     end
 
     # sends the handshake messages.
@@ -46,17 +51,22 @@ module Torrenter
         loop do
           break if @master_index.all? { |piece| piece == :downloaded }
           @peers.each do |peer|
-            if peer.socket
+            if peer.status
               peer.state(@master_index, @blocks) # unless peer.piece_index.all? { |piece| piece == :downloaded }
             elsif Time.now.to_i % 500 == 0
               peer.connect
             end
           end
         end
+        stop_downloading
         seperate_data_dump_into_files
       else
         upload_data
       end
+    end
+
+    def stop_downloading
+      @peers.each { |peer| peer.piece_index.map { |piece| piece = :downloaded}}
     end
 
     def upload_data
@@ -68,11 +78,13 @@ module Torrenter
     end
 
     def seperate_data_dump_into_files
+      binding.pry
       offset = 0
       @file_list.each do |file|
-        length = file['length']
+        length  = @piece_length
         offset += file['length']
-        File.open("#{file['path'].join}", 'a+') { |data| data << IO.read($data_dump, length, offset) }
+        filename   = file['name'] || file['path'].join
+        File.open(filename, 'a+') { |data| data << IO.read($data_dump, length, offset) }
       end
     end
 
