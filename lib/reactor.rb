@@ -16,28 +16,19 @@ module Torrenter
       # @server       = TCPServer.new("127.0.0.1", 28561)
     end
 
-    def delayed_connect
-      offset = 0
-      @peers.map { |peer| [peer, Time.now + (offset+=100), ->(peer) { peer.connect }]}
-    end
 
     # makes the peers connect
 
 
     # selects the peers that were able to connect
 
-    def connected
-      @peers.select { |peer| peer.socket }
-    end
 
     def modify_index
       IO.write($data_dump, '', 0) unless File.exists?($data_dump)
       file_size = File.size($data_dump)
       0.upto(@sha_list.size - 1) do |n|
         data = IO.read($data_dump, @piece_length, n * @piece_length) || ''
-        index = off / @piece_length
-        @master_index[index] = :downloaded if Digest::SHA1.digest(data) == @sha_list[index]
-        off += @piece_length
+        @master_index[n] = :downloaded if Digest::SHA1.digest(data) == @sha_list[n]
       end
       puts "#{@master_index.count(:downloaded)} pieces are downloaded already."
     end
@@ -86,10 +77,6 @@ module Torrenter
         filename   = file['name'] || file['path'].join
         File.open(filename, 'a+') { |data| data << IO.read($data_dump, length, offset) }
       end
-    end
-
-    def keep_alive
-      @connected.each { |peer| peer.send_data(KEEP_ALIVE) }
     end
 
     def parse_bitfields
