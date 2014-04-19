@@ -1,47 +1,91 @@
 module Torrenter
   class UDPConnection
-    def initialize(ip, port)
+    attr_reader :sender, :response
+    def initialize(ip, port, info_hash)
       @ip             = ip
-      @port           = port.to_i
+      @port           = port
       @sender         = UDPSocket.new
-      @connection_id  = [0x41727101980].pack("Q")
-      @transaction_id = [29345].pack("N")
-      binding.pry
+      @t              = rand(10000)
+      @connection_id  = [0x41727101980].pack("Q>")
+      @transaction_id = [@t].pack("I>")
+      @info_hash      = info_hash
     end
 
-    def udp_server
-      @sender.connect(addr, @port)
-      @sender.send msg, 0
-      @sender.recvfrom_nonblock(16)
-      # Socket.udp_server_sockets(0) { |socket| 
-      #   socket = socket.first
-      #   sock_addr = socket.local_address
-      #   binding.pry
-      #   socket.bind(sock_addr)
-      #   # socket is what I'll use to receive info?
-      #   binding.pry
-      # }
+    def connect_to_udp_host
+      begin
+        @sender.connect(@ip, @port)
+        return self
+      rescue
+        false
+      end
     end
 
-    def addr
-      Socket.getaddrinfo(@ip, @port)[0][3]
+    def message_relay
+      @sender.send(connect_msg, 0)
+      read_response
+      if @response
+        @connection_id = @response[-8..-1]
+        @transaction_id = [rand(10000)].pack("I>")
+        @sender.send(announce_msg, 0)
+      end
+
+      read_response
+      
+      if @response
+        parse_announce if @response[0..3] == action(1)
+        return @response
+      end
     end
 
-
-    def connect
-      @socket.connect(@ip, @port, 0)
-    end
-
-    def msg
-      @connection_id + action(0) + @transaction_id
-    end
-
-    def action(n)
-      [n].pack("I")
+    def parse_announce
+      if @response[4..7] == @transaction_id
+        res = @response.slice!(0..11)
+        leechers = @response.slice!(0..3).unpack("I>").first
+        seeders  = @response.slice!(0..3).unpack("I>").first
+      end
     end
 
     def send_message
+      begin
+        @sender.send(@msg, 0)
+      rescue
+      end
+    end
+
+    def read_response
+      begin
+        @response = @sender.recv(1028)
+      rescue Exception => e
+        e
+      end
+    end
+
+    def connect_match?
+      data[0] == (action(0) + @transaction_id + @connection_id)
+    end
+
+    def announce_input
+      @connection_id + action(1) + @transaction_id + @info_hash + PEER_ID
+    end
+
+    def connect_msg
+      @connection_id + action(0) + @transaction_id
+    end
+
+    def port
+      @sender.addr[1]
+    end
+
+    def action(n)
+      [n].pack("I>")
+    end
+
+    def method_name
       
+    end
+
+    def announce_msg
+      @connection_id + action(1) + @transaction_id + @info_hash + PEER_ID + [0].pack("Q>") + [0].pack("Q>") + [0].pack("Q>") + action(0) + action(0) + action(0) + action(-1) + [port].pack(">S")
     end
   end
 end

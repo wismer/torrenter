@@ -12,8 +12,9 @@ module Torrenter
     IO.write("#{$data_dump}", '', 0) if !File.exists?($data_dump)
     stream  = BEncode.load_file(file)
     peers   = Torrenter::TorrentReader.new(stream)
-    peers.uri_hash
-    peers.establish_reactor
+    peers.determine_protocol
+    # peers.uri_hash
+    # peers.establish_reactor
   end
 end
 file    = ARGV[0]

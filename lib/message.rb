@@ -116,10 +116,6 @@ module Torrenter
     end
   end
 
-  def total_file_size
-    @file_list.map { |file| file['length'] }.inject { |x,y| x + y }
-  end
-
   def state(master, blocks)
     @buffer_state = @buffer[4]
     if buffer.bytesize <= 3 
@@ -159,11 +155,11 @@ module Torrenter
             else
               request_message
             end
-          elsif (File.size($data_dump) + piece_size) == total_file_size
+          elsif (File.size($data_dump) + piece_size) == @total_file_size
             pack_file(master)
             File.open($data_dump, 'w') { |io| io << '' }
           else
-            request_message(total_file_size - (File.size($data_dump) + piece_size))
+            request_message(@total_file_size - (File.size($data_dump) + piece_size))
           end
         else
           recv_data(@length - buffer.bytesize)
@@ -179,7 +175,7 @@ module Torrenter
   end
 
   def data_remaining
-    ((total_file_size - (File.size($data_dump) + piece_size))) / BLOCK
+    ((@total_file_size - (File.size($data_dump) + piece_size))) / BLOCK
   end
 
   def piece_size

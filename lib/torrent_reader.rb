@@ -11,45 +11,79 @@ module Torrenter
     attr_reader :stream
     def initialize(stream)
       @stream   = stream
-      @uri      = URI(stream['announce'])
-      if stream['announce-list']
-        @list     = stream['announce-list'].flatten
+    end
+
+    def determine_protocol
+      trackers =  if @stream['announce-list']
+                    @stream['announce-list'].flatten << @stream['announce']
+                  else
+                    [@stream['announce']]
+                  end
+
+      @http_trackers = trackers.select { |tracker| tracker =~ /http\:\/\// }
+      @udp_trackers  = trackers.select { |tracker| tracker =~ /udp\:\/\//  }
+      # first try the http trackers...
+      @udp_trackers.map! do |udp|
+        udp.gsub!(/udp\:\/\/|\:\d+/, '')
+        ip = Socket.getaddrinfo(udp, 80)[0][3]
+        udp_socket = UDPConnection.new(ip, 80, sha)
+        udp_socket.connect_to_udp_host
+      end
+
+      while @peers.nil?
+        udp = @udp_trackers.shift
+        begin
+          @peers = udp.message_relay
+        rescue
+        end
+      end
+
+      peer_list
+      establish_reactor
+    end
+
+    def connect_to_http_tracker
+      @http_trackers.map! { |tracker| URI(tracker) }
+      until raw_peers.is_a?(Array)
+        @uri       = @http_trackers.shift
+        @uri.query = URI.encode_www_form(peer_hash)
       end
     end
+
+    def connect_to_udp_tracker
+      
+    end
+
 
     # url gets reformatted to include query parameters
 
     def raw_peers
       begin
-        BEncode.load(Net::HTTP.get(@uri))['peers'].bytes
+        @peers = BEncode.load(Net::HTTP.get(@uri))['peers']
       rescue
-        announce_urls
+        # announce_urls
+        # connect_udp
       end
     end
 
-    def announce_urls
-      udp_urls.each do |site|
-        site, port = site.gsub(/^udp\:\/\//, '').split(/\:/)
-        udp = UDPConnection.new(site, port)
-      end
-    end
+    # def announce_urls
+    #   @trackers.map! do |site|
+    #     site, port = site.gsub(/^udp\:\/\/|\/announce/, '').split(/\:/)
+    #     port ||= 80
+    #     socket_data = Socket.getaddrinfo(site, port.to_i)
+    #     ip, port = socket_data[0][3], socket_data[0][1]
+    #     UDPConnection.new(ip, port).connect_to_udp_host
+    #   end
+    #   connect_udp
+    #   binding.pry
+    # end
 
-    def udp_urls
-      @list.select { |site| site =~ /^udp/ }
-    end
+    # def create_udp_socket(site)
+    #   port = site.gsub!(/\:\d+$/, '').to_i
+    #   addr = Addrinfo.getaddrinfo(site, port)
 
-    def create_udp_socket(site)
-      port = site.gsub!(/\:\d+$/, '').to_i
-      addr = Addrinfo.getaddrinfo(site, port)
-
-      addr.ip_unpack
-    end
-
-    def announce_list
-      announce_urls.map do |site|
-        UDPConnection.new(site) if site.is_a?(Array)
-      end
-    end
+    #   addr.ip_unpack
+    # end
 
     def uri_hash
       @uri.query = URI.encode_www_form(peer_hash)
@@ -78,9 +112,11 @@ module Torrenter
 
     def peer_list
       ip_list = []
-      raw_peers.each_slice(6) { |e| ip_list << e if e.length == 6 }
+      until @peers.empty?
+        ip_list << { ip: @peers.slice!(0..3).bytes.join('.'), port: @peers.slice!(0..1).unpack("S>").first }
+      end
 
-      ip_list.map! { |e| { :ip => e[0..3].join('.'), :port => (e[4] * 256) + e[5] } }
+      @peers = ip_list.map { |peer| Peer.new(peer, file_list, peer_info) }
     end
 
     def sha_list
@@ -99,13 +135,8 @@ module Torrenter
         :info_hash    => sha,
         :piece_length => piece_length,
         :sha_list     => sha_list,
-        :piece_index  => Array.new(sha_list.size) { false },
-        :peer_list    => peer_list
+        :piece_index  => Array.new(sha_list.size) { false }
       }
-    end
-
-    def peers
-      peer_list.map { |peer| Peer.new(peer, file_list, peer_info) }
     end
 
     def file_list
@@ -113,8 +144,8 @@ module Torrenter
     end
 
     def establish_reactor
-      react = Reactor.new(peers, sha_list, piece_length, file_list)
-      begin 
+      react = Reactor.new(@peers, sha_list, piece_length, file_list)
+      begin
         react.message_reactor
       end
     end

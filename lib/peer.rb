@@ -9,16 +9,16 @@ module Torrenter
 
 
     def initialize(peer, file_list, peer_info={})
-      @peer        = peer
-      @info_hash   = peer_info[:info_hash]
-      @piece_len   = peer_info[:piece_length]
-      @sha_list    = peer_info[:sha_list]
-      @piece_index = peer_info[:piece_index]
-      @buffer      = ''
-      @block_map   = []
-      @offset      = 0
-      @file_list   = file_list
-      @attempts    = 0
+      @peer            = peer
+      @info_hash       = peer_info[:info_hash]
+      @piece_len       = peer_info[:piece_length]
+      @sha_list        = peer_info[:sha_list]
+      @piece_index     = peer_info[:piece_index]
+      @buffer          = ''
+      @block_map       = []
+      @offset          = 0
+      @file_list       = file_list
+      @total_file_size = file_list['length'] || file_list.map { |f| f['length'] }.inject { |x, y| x + y }
     end
 
     def connect
@@ -45,10 +45,6 @@ module Torrenter
 
     def handshake
       "#{PROTOCOL}#{@info_hash}#{PEER_ID}"
-    end
-
-    def reconnecter(peer, &block)
-      
     end
 
     def msg_num
