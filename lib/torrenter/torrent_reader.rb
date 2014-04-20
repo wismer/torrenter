@@ -3,14 +3,13 @@ require 'digest/sha1'
 require 'bencode'
 require 'pry'
 require 'fileutils'
-require 'json'
 
 
 module Torrenter
   class TorrentReader
     attr_reader :stream
     def initialize(stream)
-      @stream   = stream
+      @stream      = stream
     end
 
     def determine_protocol
@@ -65,28 +64,6 @@ module Torrenter
       end
     end
 
-    # def announce_urls
-    #   @trackers.map! do |site|
-    #     site, port = site.gsub(/^udp\:\/\/|\/announce/, '').split(/\:/)
-    #     port ||= 80
-    #     socket_data = Socket.getaddrinfo(site, port.to_i)
-    #     ip, port = socket_data[0][3], socket_data[0][1]
-    #     UDPConnection.new(ip, port).connect_to_udp_host
-    #   end
-    #   connect_udp
-    #   binding.pry
-    # end
-
-    # def create_udp_socket(site)
-    #   port = site.gsub!(/\:\d+$/, '').to_i
-    #   addr = Addrinfo.getaddrinfo(site, port)
-
-    #   addr.ip_unpack
-    # end
-
-    def uri_hash
-      @uri.query = URI.encode_www_form(peer_hash)
-    end
 
     def piece_length
       stream['info']['piece length']

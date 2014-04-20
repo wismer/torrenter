@@ -66,11 +66,7 @@ module Torrenter
     end
 
     def stop_downloading
-      @peers.each { |peer| peer.piece_index.map { |piece| piece = :downloaded}}
-    end
-
-    def upload_data
-      binding.pry
+      @peers.each { |peer| peer.piece_index.map { |piece| piece = :downloaded} }
     end
 
     def seperate_data_dump_into_files
@@ -78,6 +74,7 @@ module Torrenter
         offset = 0
         folder = FileUtils.mkdir($data_dump[/.+(?=\.torrent-data)/]).join
         @file_list.each do |file|
+
           length =  file['length']
           filename = file['path'].pop
 
@@ -86,10 +83,10 @@ module Torrenter
             folder = folder + "/" + subfolders
             FileUtils.mkdir_p("#{folder}", force: true)
           end
-          binding.pry
+
           File.open("#{folder}/#{filename}", 'a+') { |data| data << IO.read($data_dump, length, offset) }
+          
           offset += length
-          # will need to add way to distribute data if the torrent contains multiple sub-folders (i.e. multiple downloads)
         end
       else
         File.open("#{folder}/#{@file_list['name'].join}", 'w') { |data| data << File.read($data_dump) }
