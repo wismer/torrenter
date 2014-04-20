@@ -39,7 +39,8 @@ module Torrenter
     rescue IO::EAGAINWaitReadable
       ''
     rescue Errno::ETIMEDOUT
-      disconnect_peer
+      @status = false
+      @buffer = ''
     end
   end
 
@@ -148,8 +149,8 @@ module Torrenter
           pack_buffer
           # that means the bytes for that block have been collected entirely.
           # the buffer becomes empty
-          puts "remaining blocks: #{data_remaining} index: #{@index + 1} peer: #{peer} current_piece: #{offset} count: #{@requesting}"
-          if data_remaining > 0
+          puts "remaining blocks: index: #{@index + 1} peer: #{peer} current_piece: #{offset} count: #{@requesting}"
+          if pieces_remaining(master) > 1
             if piece_size == @piece_len
               pack_file(master)
               evaluate_index(master)
@@ -159,10 +160,12 @@ module Torrenter
             end
           elsif (File.size($data_dump) + piece_size) == total_file_size
             pack_file(master)
-            File.open($data_dump, 'w') { |io| io << '' }
           else
-            binding.pry
-            request_message(total_file_size - (File.size($data_dump) + piece_size))
+            if bytes_remaining >= BLOCK
+              request_message
+            else
+              request_message(bytes_remaining)
+            end
           end
         else
           recv_data(@length - buffer.bytesize)
@@ -177,8 +180,12 @@ module Torrenter
     end
   end
 
-  def data_remaining
-    ((total_file_size - (File.size($data_dump) + piece_size))) / BLOCK
+  def pieces_remaining(master)
+    master.count(:downloading) + master.count(:free)
+  end
+
+  def bytes_remaining
+    (total_file_size - File.size($data_dump)) - piece_size
   end
 
   def piece_size
@@ -197,12 +204,8 @@ module Torrenter
       master[@index] = :downloaded
       @piece_index[@index] = :downloaded
     else
-      binding.pry
       master[@index] = :free
       @piece_index[@index] = :downloaded
-
-      # data not passed - clear block_map and revert changes to both master and piece indices
-      # peer may also not be a good peer.
     end
     @block_map = []
     @offset = 0

@@ -69,13 +69,15 @@ module Torrenter
     end
 
     def seperate_data_dump_into_files
-      binding.pry
-      offset = 0
-      @file_list.each do |file|
-        length  = @piece_length
-        offset += file['length']
-        filename   = file['name'] || file['path'].join
-        File.open(filename, 'a+') { |data| data << IO.read($data_dump, length, offset) }
+      if multiple_files?      
+        @file_list.each do |file|
+          length  = @piece_length
+          offset += file['length']
+          filename   = file['name'] || file['path']
+          File.open(filename, 'a+') { |data| data << IO.read($data_dump, length, offset) }
+        end
+      else
+        File.open(@file_list['name'], 'w') { |data| data << File.read($data_dump) }
       end
     end
 

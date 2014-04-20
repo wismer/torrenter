@@ -79,11 +79,7 @@ module Torrenter
     def action(n)
       [n].pack("I>")
     end
-
-    def method_name
-      
-    end
-
+    
     def announce_msg
       @connection_id + action(1) + @transaction_id + @info_hash + PEER_ID + [0].pack("Q>") + [0].pack("Q>") + [0].pack("Q>") + action(0) + action(0) + action(0) + action(-1) + [port].pack(">S")
     end

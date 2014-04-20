@@ -23,6 +23,21 @@ module Torrenter
       @http_trackers = trackers.select { |tracker| tracker =~ /http\:\/\// }
       @udp_trackers  = trackers.select { |tracker| tracker =~ /udp\:\/\//  }
       # first try the http trackers...
+      
+      connect_to_http_tracker if @http_trackers.size > 0
+      connect_to_udp_tracker if @peers.nil?
+
+      peer_list
+      establish_reactor
+    end
+
+    def connect_to_http_tracker
+      @uri       = URI(@http_trackers.shift)
+      @uri.query = URI.encode_www_form(peer_hash)
+      @peers     = raw_peers
+    end
+
+    def connect_to_udp_tracker
       @udp_trackers.map! do |udp|
         udp.gsub!(/udp\:\/\/|\:\d+/, '')
         ip = Socket.getaddrinfo(udp, 80)[0][3]
@@ -37,21 +52,6 @@ module Torrenter
         rescue
         end
       end
-
-      peer_list
-      establish_reactor
-    end
-
-    def connect_to_http_tracker
-      @http_trackers.map! { |tracker| URI(tracker) }
-      until raw_peers.is_a?(Array)
-        @uri       = @http_trackers.shift
-        @uri.query = URI.encode_www_form(peer_hash)
-      end
-    end
-
-    def connect_to_udp_tracker
-      
     end
 
 
@@ -59,10 +59,9 @@ module Torrenter
 
     def raw_peers
       begin
-        @peers = BEncode.load(Net::HTTP.get(@uri))['peers']
+        BEncode.load(Net::HTTP.get(@uri))['peers']
       rescue
-        # announce_urls
-        # connect_udp
+        nil
       end
     end
 
