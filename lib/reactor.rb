@@ -55,30 +55,12 @@ module Torrenter
     end
 
     def download_bar
-      ("\u2588" * downloaded) + ("\u2593" * downloading) + (" " * free) + "%#{downloaded} downloaded"
-    end
-
-    def pieces(type)
-      (@master_index.count(type).fdiv(@master_index.size) * 100).round
-    end
-
-    def downloading
-      (@master_index.count(:downloading).fdiv(@master_index.size) * 100).round
-    end
-
-    def downloaded
-      (@master_index.count(:downloaded).fdiv(@master_index.size) * 100).round
-    end
-
-    def free
-      (@master_index.count(:free).fdiv(@master_index.size) * 100).round
+      ("\u2588" * pieces(:downloaded)) + ("\u2593" * pieces(:downloading)) + (" " * pieces(:free)) + "%#{downloaded} downloaded"
     end
 
     def stop_downloading
       @peers.each { |peer| peer.piece_index.map { |piece| piece = :downloaded}}
     end
-
- 
 
     def upload_data
       binding.pry
