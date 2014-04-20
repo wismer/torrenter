@@ -13,7 +13,6 @@ module Torrenter
                       else
                         file_list['length']
                       end
-      # @server       = TCPServer.new("127.0.0.1", 28561)
     end
 
     def modify_index
@@ -40,9 +39,9 @@ module Torrenter
               peer.state(@master_index, @blocks) # unless peer.piece_index.all? { |piece| piece == :downloaded }
               if @master_index.count(:downloaded) > piece_count
                 system("clear")
-                puts download_bar
+                puts download_bar + "with #{@peers.size}"
               end
-            elsif Time.now.to_i % 500 == 0
+            elsif Time.now.to_i % 60 == 0
               peer.connect
             end
           end
@@ -55,7 +54,7 @@ module Torrenter
     end
 
     def download_bar
-      ("\u2588" * pieces(:downloaded)) + ("\u2593" * pieces(:downloading)) + (" " * pieces(:free)) + " %#{pieces(:downloaded)} downloaded"
+      ("\u2588" * pieces(:downloaded)) + ("\u2593" * pieces(:downloading)) + (" " * pieces(:free)) + " %#{pieces(:downloaded)} downloaded "
     end
 
     def pieces(type)
@@ -75,22 +74,31 @@ module Torrenter
     end
 
     def seperate_data_dump_into_files
-      folder = $data_dump[/.+(?=\.torrent-data)/]
       if multiple_files?
         offset = 0
-        FileUtils.mkdir_p(folder)
+        folder = FileUtils.mkdir($data_dump[/.+(?=\.torrent-data)/]).join
         @file_list.each do |file|
+          length =  file['length']
+          filename = file['path'].pop
+
+          if multiple_sub_folders?(file)
+            subfolders = file['path'].join("/")
+            folder = folder + "/" + subfolders
+            FileUtils.mkdir_p("#{folder}", force: true)
+          end
           binding.pry
-          length  = @piece_length
-          offset += file['length']
-          filename   = file['name'] || file['path']
-          # will need to add way to distribute data if the torrent contains multiple sub-folders (i.e. multiple downloads)
           File.open("#{folder}/#{filename}", 'a+') { |data| data << IO.read($data_dump, length, offset) }
+          offset += length
+          # will need to add way to distribute data if the torrent contains multiple sub-folders (i.e. multiple downloads)
         end
       else
         File.open("#{folder}/#{@file_list['name'].join}", 'w') { |data| data << File.read($data_dump) }
       end
       File.delete($data_dump)
+    end
+
+    def multiple_sub_folders?(file)
+      file['path'].size > 1
     end
 
     def multiple_files?
