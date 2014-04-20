@@ -1,0 +1,9 @@
+#!/usr/bin/env ruby
+require 'rubygems'
+require 'bencode'
+require 'net/http'
+require 'fileutils'
+require 'torrenter'
+file    = ARGV[0]
+$data_dump = "#{file}-data"
+Torrenter::Torrent.new.start(file)
