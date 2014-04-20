@@ -149,7 +149,6 @@ module Torrenter
           pack_buffer
           # that means the bytes for that block have been collected entirely.
           # the buffer becomes empty
-          puts "remaining blocks: index: #{@index + 1} peer: #{peer} current_piece: #{offset} count: #{@requesting}"
           if pieces_remaining(master) > 1
             if piece_size == @piece_len
               pack_file(master)
@@ -199,7 +198,6 @@ module Torrenter
   def pack_file(master)
     data = @block_map.join
     if piece_verified?(data)
-      p 'piece passed.'
       IO.write($data_dump, data, @index * @offset)
       master[@index] = :downloaded
       @piece_index[@index] = :downloaded

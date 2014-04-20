@@ -16,13 +16,6 @@ module Torrenter
       # @server       = TCPServer.new("127.0.0.1", 28561)
     end
 
-
-    # makes the peers connect
-
-
-    # selects the peers that were able to connect
-
-
     def modify_index
       IO.write($data_dump, '', 0) unless File.exists?($data_dump)
       file_size = File.size($data_dump)
@@ -42,8 +35,13 @@ module Torrenter
         loop do
           break if @master_index.all? { |piece| piece == :downloaded }
           @peers.each do |peer|
+            piece_count = @master_index.count(:downloaded)
             if peer.status
               peer.state(@master_index, @blocks) # unless peer.piece_index.all? { |piece| piece == :downloaded }
+              if @master_index.count(:downloaded) > piece_count
+                system("clear")
+                puts download_bar
+              end
             elsif Time.now.to_i % 500 == 0
               peer.connect
             end
@@ -56,9 +54,31 @@ module Torrenter
       end
     end
 
+    def download_bar
+      ("\u2588" * downloaded) + ("\u2593" * downloading) + (" " * free) + "%#{downloaded} downloaded"
+    end
+
+    def pieces(type)
+      (@master_index.count(type).fdiv(@master_index.size) * 100).round
+    end
+
+    def downloading
+      (@master_index.count(:downloading).fdiv(@master_index.size) * 100).round
+    end
+
+    def downloaded
+      (@master_index.count(:downloaded).fdiv(@master_index.size) * 100).round
+    end
+
+    def free
+      (@master_index.count(:free).fdiv(@master_index.size) * 100).round
+    end
+
     def stop_downloading
       @peers.each { |peer| peer.piece_index.map { |piece| piece = :downloaded}}
     end
+
+ 
 
     def upload_data
       binding.pry
@@ -69,7 +89,7 @@ module Torrenter
     end
 
     def seperate_data_dump_into_files
-      if multiple_files?      
+      if multiple_files?
         @file_list.each do |file|
           length  = @piece_length
           offset += file['length']
@@ -79,6 +99,10 @@ module Torrenter
       else
         File.open(@file_list['name'], 'w') { |data| data << File.read($data_dump) }
       end
+    end
+
+    def multiple_files?
+      @file_list.is_a?(Array)
     end
 
     def parse_bitfields
