@@ -75,16 +75,22 @@ module Torrenter
     end
 
     def seperate_data_dump_into_files
+      folder = $data_dump[/.+(?=\.torrent-data)/]
       if multiple_files?
+        offset = 0
+        FileUtils.mkdir_p(folder)
         @file_list.each do |file|
+          binding.pry
           length  = @piece_length
           offset += file['length']
           filename   = file['name'] || file['path']
-          File.open(filename, 'a+') { |data| data << IO.read($data_dump, length, offset) }
+          # will need to add way to distribute data if the torrent contains multiple sub-folders (i.e. multiple downloads)
+          File.open("#{folder}/#{filename}", 'a+') { |data| data << IO.read($data_dump, length, offset) }
         end
       else
-        File.open(@file_list['name'], 'w') { |data| data << File.read($data_dump) }
+        File.open("#{folder}/#{@file_list['name'].join}", 'w') { |data| data << File.read($data_dump) }
       end
+      File.delete($data_dump)
     end
 
     def multiple_files?
