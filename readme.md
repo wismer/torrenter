@@ -1,3 +1,7 @@
-Torrenter: BitTorrent Client written in in Ruby
-==============================================
+Torrenter
+=========
+
+
+BitTorrent Client written in in Ruby
+---------
 
