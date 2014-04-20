@@ -61,10 +61,6 @@ module Torrenter
       (@master_index.count(type).fdiv(@master_index.size) * 100).round
     end
 
-    def free
-      (@master_index.count(:free).fdiv(@master_index.size) * 100).round
-    end
-
     def stop_downloading
       @peers.each { |peer| peer.piece_index.map { |piece| piece = :downloaded} }
     end
@@ -72,7 +68,7 @@ module Torrenter
     def seperate_data_dump_into_files
       if multiple_files?
         offset = 0
-        folder = FileUtils.mkdir($data_dump[/.+(?=\.torrent-data)/]).join
+        folder =  $data_dump[/.+(?=\.torrent-data)/] || FileUtils.mkdir($data_dump[/.+(?=\.torrent-data)/]).join
         @file_list.each do |file|
 
           length =  file['length']
