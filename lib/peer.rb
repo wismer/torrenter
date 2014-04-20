@@ -4,8 +4,8 @@ module Torrenter
     include Torrenter
     # for non outside vars use the @ and remove them from
 
-    attr_reader :socket, :peer, :sha_list, :piece_len, :info_hash, :orig_index, :status
-    attr_accessor :piece_index, :offset, :buffer, :shaken, :ready, :bitfield, :block_map, :request_sent, :current_piece, :interested, :block_count
+    attr_reader :socket, :peer, :sha_list, :piece_len, :info_hash, :status
+    attr_accessor :piece_index, :offset, :buffer, :block_map
 
 
     def initialize(peer, file_list, peer_info={})

@@ -55,7 +55,15 @@ module Torrenter
     end
 
     def download_bar
-      ("\u2588" * pieces(:downloaded)) + ("\u2593" * pieces(:downloading)) + (" " * pieces(:free)) + "%#{downloaded} downloaded"
+      ("\u2588" * pieces(:downloaded)) + ("\u2593" * pieces(:downloading)) + (" " * pieces(:free)) + " %#{pieces(:downloaded)} downloaded"
+    end
+
+    def pieces(type)
+      (@master_index.count(type).fdiv(@master_index.size) * 100).round
+    end
+
+    def free
+      (@master_index.count(:free).fdiv(@master_index.size) * 100).round
     end
 
     def stop_downloading
@@ -64,10 +72,6 @@ module Torrenter
 
     def upload_data
       binding.pry
-    end
-
-    def display_state
-      File.open('data.json', 'w') { |io| io << JSON.generate( { indices: @master_index } ) }
     end
 
     def seperate_data_dump_into_files
@@ -85,17 +89,6 @@ module Torrenter
 
     def multiple_files?
       @file_list.is_a?(Array)
-    end
-
-    def parse_bitfields
-      @connected.each do |peer|
-        peer.parse_bitfield
-        @connected.delete(peer) unless peer.bitfield
-      end
-    end
-
-    def empty_buffers
-      @connected.each { |peer| peer.buffer = '' }
     end
   end
 end
