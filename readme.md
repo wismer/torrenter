@@ -8,6 +8,6 @@ popular popcorn movie viewer.
 
 To start using, first install
 
-  gem install torrenter
+    gem install torrenter
 
 then download the torrent, `cd` to it in the terminal and finally, simply type in `torrenter torrent_file`.
