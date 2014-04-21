@@ -39,7 +39,7 @@ module Torrenter
               peer.state(@master_index, @blocks) # unless peer.piece_index.all? { |piece| piece == :downloaded }
               if @master_index.count(:downloaded) > piece_count
                 system("clear")
-                puts download_bar + "with #{@peers.size}"
+                puts download_bar + "Downloading from #{active_peers} active peers"
               end
             elsif Time.now.to_i % 60 == 0
               peer.connect
@@ -51,6 +51,10 @@ module Torrenter
       else
         upload_data
       end
+    end
+
+    def active_peers
+      @peers.select { |peer| peer.status }.size
     end
 
     def download_bar

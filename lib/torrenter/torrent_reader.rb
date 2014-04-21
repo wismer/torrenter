@@ -25,9 +25,9 @@ module Torrenter
       
       connect_to_http_tracker if @http_trackers.size > 0
       connect_to_udp_tracker if @peers.nil?
-
       peer_list
       establish_reactor
+
     end
 
     def connect_to_http_tracker
@@ -38,10 +38,15 @@ module Torrenter
 
     def connect_to_udp_tracker
       @udp_trackers.map! do |udp|
-        udp.gsub!(/udp\:\/\/|\:\d+/, '')
-        ip = Socket.getaddrinfo(udp, 80)[0][3]
-        udp_socket = UDPConnection.new(ip, 80, sha)
-        udp_socket.connect_to_udp_host
+        port = udp[/\d+/]
+        udp.gsub!(/udp\:\/\/|\:\d+|\/announce/, '')
+        begin
+          ip = Socket.getaddrinfo(udp, 80)[0][3]
+          udp_socket = UDPConnection.new(ip, port.to_i, sha)
+          udp_socket.connect_to_udp_host
+        rescue SocketError
+          puts 'Unuseable UDP site'
+        end
       end
 
       while @peers.nil?
@@ -50,6 +55,7 @@ module Torrenter
           @peers = udp.message_relay
         rescue
         end
+
       end
     end
 
