@@ -6,7 +6,6 @@ require "net/http"
 
 $data_dump = 'thrones.torrent-data'
 
-$thread = Thread.new { Torrenter::Torrent.new.start("thrones.torrent") }.run
 
 get '/' do
   erb :index
@@ -17,6 +16,7 @@ post '/' do
 end
 
 get '/filer' do
+  $thread = Thread.new { Torrenter::Torrent.new.start(params[:torrent]) }.run
   erb :index
 end
 
