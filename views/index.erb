@@ -1,0 +1,36 @@
+<script src="http://d3js.org/d3.v3.min.js" charset="utf-8"></script>
+<script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js"></script>
+<script src="/data.js" charset"utf-8"></script>
+<script type="text/javascript">
+
+  // function checkUpdate () {
+  //   req = new XMLHttpRequest();
+  //   req.open("GET", "/filer", true);
+
+  //   function aSynch () {  
+  //     console.log(req.responseText);
+  //     var dis = document.getElementsByClassName('a')[0];
+  //     dis.innerText = req.responseText
+  //   }
+
+  //   req.onreadystatechange = function () {
+  //     if (req.readyState == 4 && req.status == 200) {
+  //       console.log('received');
+  //       aSynch();
+  //     }
+  //   }
+  //   req.send();
+  //   setTimeout(checkUpdate, 1000);
+  // }
+  // checkUpdate();
+  
+</script>
+<body>
+  <form method="POST" action="/filer">
+    <input type='text' value="" name='file'>
+    <input type='submit' value='submit' name="button">
+  </form>
+
+  <div class='a'>sdasd</div>
+</body>
+
