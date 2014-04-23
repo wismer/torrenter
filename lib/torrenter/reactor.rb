@@ -22,6 +22,7 @@ module Torrenter
         data = IO.read($data_dump, @piece_length, n * @piece_length) || ''
         @master_index[n] = :downloaded if Digest::SHA1.digest(data) == @sha_list[n]
       end
+      $update = @master_index
       puts "#{@master_index.count(:downloaded)} pieces are downloaded already."
     end
 
@@ -31,6 +32,7 @@ module Torrenter
       modify_index
       if !@master_index.all? { |index| index == :downloaded }
         @peers.each { |peer| peer.connect }
+        puts "You are now connected to #{active_peers} peers."
         loop do
           break if @master_index.all? { |piece| piece == :downloaded }
           @peers.each do |peer|
@@ -38,6 +40,7 @@ module Torrenter
             if peer.status
               peer.state(@master_index, @blocks) # unless peer.piece_index.all? { |piece| piece == :downloaded }
               if @master_index.count(:downloaded) > piece_count
+                send_post
                 system("clear")
                 puts download_bar + "Downloading from #{active_peers} active peers"
               end
@@ -51,6 +54,12 @@ module Torrenter
       else
         upload_data
       end
+    end
+
+    def send_post
+      $update = @master_index
+      # http = Net::HTTP.new("localhost", 4567)
+      # http.post("/filer", JSON.generate({:index => @master_index}))
     end
 
     def active_peers

@@ -44,11 +44,19 @@ module Torrenter
       end
 
       if @socket
+        emit_event
+
         @socket.write(handshake)
         @status = true
       else
         @status = false
       end
+    end
+
+    def emit_event
+      # http = Net::HTTP.new("localhost", 9000)
+
+      # http.post("/watcher", JSON.generate(peer))
     end
 
     def handshake
