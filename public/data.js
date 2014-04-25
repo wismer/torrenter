@@ -4,7 +4,7 @@ $(document).ready(function() {
 
   var wdt = 900
 
-  svg.attr('width', wdt)
+  svg.attr('width', wdt).style("url('/kitten.jpg')")
 
   function timer () {
     $.ajax({
@@ -13,8 +13,12 @@ $(document).ready(function() {
       dataType: 'json',
       processData: false,
       success: function (data, str, oth) {
+        $('li.ips').remove();
+        peers = data.peer_count
+        $('div.what').text(peers)
         function render () {
           len = data.master_index
+          console.log(len)
           count = 0
           sqr_rt = Math.floor(Math.sqrt(len.length))
           sqr_size = wdt / sqr_rt
@@ -31,22 +35,24 @@ $(document).ready(function() {
             .attr('y', function(d,i){
               return Math.floor(i / sqr_rt) * sqr_size;
             })
-            .attr('stroke', 'black')
+            .attr('stroke', 'white')
             .attr('stroke-width', '1px')
             .attr('fill', function(d,i){
-              switch (d) {
-                case 'downloaded':
-                  return 'red';
-                  break;
-                case 'free':
-                  return 'blue';
-                  break;
-                case 'downloading':
-                  return 'black'
-                  break;
-                default:
-                  return 'green';
-              }
+              val = d * 255
+              return d3.rgb(val,0,val);
+              // switch (d) {
+              //   case 'downloaded':
+              //     return 'red';
+              //     break;
+              //   case 'free':
+              //     return 'blue';
+              //     break;
+              //   case 'downloading':
+              //     return 'black'
+              //     break;
+              //   default:
+              //     return 'green';
+              // }
             })
             .attr('width', sqr_size)
             .attr('height', sqr_size)
@@ -66,7 +72,7 @@ $(document).ready(function() {
         render();
       }
     })
-    setTimeout(timer, 5000);
+    setTimeout(timer, 1000);
   }
   timer();
 })

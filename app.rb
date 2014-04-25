@@ -21,5 +21,5 @@ get '/filer' do
 end
 
 post '/filer' do
-  JSON.generate({ master_index: $update})
+  JSON.generate({ master_index: $update[:index], peer_count: $update[:peer_count]}) if $update
 end
