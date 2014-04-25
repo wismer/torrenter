@@ -4,7 +4,7 @@ module Torrenter
     include Torrenter
     # for non outside vars use the @ and remove them from
 
-    attr_reader :socket, :peer, :sha_list, :piece_len, :info_hash, :status
+    attr_reader :socket, :peer, :sha_list, :piece_len, :info_hash, :status, :index
     attr_accessor :piece_index, :offset, :buffer, :block_map
 
 
@@ -32,7 +32,7 @@ module Torrenter
     def connect
       puts "\nConnecting to IP: #{peer[:ip]} PORT: #{peer[:port]}"
       begin
-        Timeout::timeout(2) { @socket = TCPSocket.new(peer[:ip], peer[:port]) }
+        Timeout::timeout(5) { @socket = TCPSocket.new(peer[:ip], peer[:port]) }
       rescue Timeout::Error
         puts "Timed out."
       rescue Errno::EADDRNOTAVAIL
@@ -44,19 +44,12 @@ module Torrenter
       end
 
       if @socket
-        emit_event
 
         @socket.write(handshake)
         @status = true
       else
         @status = false
       end
-    end
-
-    def emit_event
-      # http = Net::HTTP.new("localhost", 9000)
-
-      # http.post("/watcher", JSON.generate(peer))
     end
 
     def handshake

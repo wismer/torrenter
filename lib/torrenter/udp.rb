@@ -22,7 +22,9 @@ module Torrenter
 
     def message_relay
       @sender.send(connect_msg, 0)
+
       read_response
+      
       if @response
         @connection_id = @response[-8..-1]
         @transaction_id = [rand(10000)].pack("I>")

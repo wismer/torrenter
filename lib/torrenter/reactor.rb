@@ -22,27 +22,29 @@ module Torrenter
         data = IO.read($data_dump, @piece_length, n * @piece_length) || ''
         @master_index[n] = :downloaded if Digest::SHA1.digest(data) == @sha_list[n]
       end
-      $update = @master_index
+      $update = { index: indices }
       puts "#{@master_index.count(:downloaded)} pieces are downloaded already."
     end
 
     # sends the handshake messages.
 
-    def message_reactor(opts={})
+    def message_reactor
       modify_index
       if !@master_index.all? { |index| index == :downloaded }
-        @peers.each { |peer| peer.connect }
-        puts "You are now connected to #{active_peers} peers."
+        @peers.each { |peer| peer.connect if active_peers.size < 4 }
+        puts "You are now connected to #{active_peers.size} peers."
         loop do
           break if @master_index.all? { |piece| piece == :downloaded }
           @peers.each do |peer|
+            $update = { index: indices, peer_count: peer_data }
+
             piece_count = @master_index.count(:downloaded)
             if peer.status
               peer.state(@master_index, @blocks) # unless peer.piece_index.all? { |piece| piece == :downloaded }
               if @master_index.count(:downloaded) > piece_count
-                send_post
+                
                 system("clear")
-                puts download_bar + "Downloading from #{active_peers} active peers"
+                puts download_bar + "Downloading from #{active_peers.size} active peers"
               end
             elsif Time.now.to_i % 60 == 0
               peer.connect
@@ -56,14 +58,36 @@ module Torrenter
       end
     end
 
-    def send_post
-      $update = @master_index
-      # http = Net::HTTP.new("localhost", 4567)
-      # http.post("/filer", JSON.generate({:index => @master_index}))
+    def indices
+      @master_index.map do |piece|
+        if piece == :free
+          0
+        elsif piece == :downloaded
+          1
+        else
+          get_status @master_index.index(piece)
+        end
+      end
+    end
+
+    def peer_data
+      active_peers.map { |peer| "ip: #{peer.peer[:ip]} port:#{peer.peer[:port]}" }.join("\n")
+    end
+
+    def get_status(i)
+      peer = @peers.find { |peer| peer.piece_index[i] == :downloading }
+      (peer.buffer.bytesize + peer.piece_size).fdiv(@piece_length)
     end
 
     def active_peers
-      @peers.select { |peer| peer.status }.size
+      @peers.select { |peer| peer.index && peer.status }
+    end
+
+    def index_percentages
+      active_peers.map do |peer|
+        size = peer.buffer.bytesize + peer.piece_size
+        [peer.index, (size.fdiv @piece_length) * 100]
+      end
     end
 
     def download_bar

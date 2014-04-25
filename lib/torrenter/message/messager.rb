@@ -12,35 +12,37 @@ module Torrenter
       Timeout::timeout(2) { @socket.sendmsg_nonblock(msg) }
     rescue Timeout::Error
       ''
-    rescue Errno::EADDRNOTAVAIL
+    rescue *EXCEPTIONS
+      @status = false
       ''
-    rescue Errno::ECONNREFUSED
-      ''
-    rescue Errno::EPIPE
-      ''
+    #   ''
+    # rescue Errno::ECONNREFUSED
+    #   @status = false
+    #   ''
+    # rescue Errno::EPIPE
+    #   @status = false
+    #   ''
     end
   end
 
   def recv_data(bytes=BLOCK, opts={})
     begin
-      if opts[:peek]
-        Timeout::timeout(2) { @socket.recv_nonblock(4, Socket::MSG_PEEK) }
-      else
-        Timeout::timeout(2) { buffer << @socket.recv_nonblock(bytes) }
-      end
+      Timeout::timeout(2) { buffer << @socket.recv_nonblock(bytes) }
     rescue Timeout::Error
       ''
-    rescue Errno::EADDRNOTAVAIL
+    rescue *EXCEPTIONS
+      @status = false
       ''
-    rescue Errno::ECONNREFUSED
-      ''
-    rescue Errno::ECONNRESET
-      ''
+    #   ''
+    # rescue Errno::ECONNREFUSED
+    #   ''
+    # rescue Errno::ECONNRESET
+    #   ''
     rescue IO::EAGAINWaitReadable
       ''
-    rescue Errno::ETIMEDOUT
-      @status = false
-      @buffer = ''
+    # rescue Errno::ETIMEDOUT
+    #   @status = false
+    #   @buffer = ''
     end
   end
 
@@ -61,8 +63,10 @@ module Torrenter
   def parse_bitfield
     len = msg_len
     buffer.slice!(0)
-    @piece_index = buffer.slice!(0...len).unpack("B#{sha_list.size}")
-      .first.split('')
+    @piece_index = buffer.slice!(0...len)
+      .unpack("B#{sha_list.size}")
+      .first
+      .split('')
       .map { |bit| bit == '1' ? :available : :unavailable }
   end
 
@@ -97,8 +101,10 @@ module Torrenter
     @buffer.slice!(0..3).unpack("N*").first - 1
   end
 
+  # needs optimization. It evaluates the master index lazily with 
+  # no thought as to the 'rare pieces'
+
   def evaluate_index(master)
-    @requesting = 0
     if @piece_index.any? { |chunk| chunk == :available }
       @index = @piece_index.index(:available)
       if master[@index] == :free
@@ -214,7 +220,6 @@ module Torrenter
   end
 
   def request_message(bytes=BLOCK)
-    @requesting += 1
     send_data(pack(13) + "\x06" + pack(@index) + pack(@offset) + pack(bytes))
   end
 
