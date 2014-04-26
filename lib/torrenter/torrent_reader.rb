@@ -9,7 +9,11 @@ module Torrenter
   class TorrentReader
     attr_reader :stream
     def initialize(stream)
-      @stream      = stream
+      @stream       = stream
+      @file_list    = stream['info']['files'] || stream['info']
+      @sha          = Digest::SHA1.digest(stream['info'].bencode)
+      @piece_length = stream['info']['piece length']
+      @sha_list     = stream['info']['pieces']
     end
 
     def determine_protocol
@@ -18,115 +22,51 @@ module Torrenter
                   else
                     [@stream['announce']]
                   end
-
-      @http_trackers = trackers.select { |tracker| tracker =~ /http\:\/\// }
-      @udp_trackers  = trackers.select { |tracker| tracker =~ /udp\:\/\//  }
-      # first try the http trackers...
       
-      connect_to_http_tracker if @http_trackers.size > 0
-      connect_to_udp_tracker if @peers.nil?
-      peer_list
-      establish_reactor
+      trackers.each do |track|
+        tracker = build_tracker(track)
 
-    end
-
-    def connect_to_http_tracker
-      @uri       = URI(@http_trackers.shift)
-      @uri.query = URI.encode_www_form(peer_hash)
-      @peers     = raw_peers
-    end
-
-    def connect_to_udp_tracker
-      @udp_trackers.map! do |udp|
-        port = udp[/\d+/]
-        udp.gsub!(/udp\:\/\/|\:\d+|\/announce/, '')
-        begin
-          ip = Socket.getaddrinfo(udp, 80)[0][3]
-          udp_socket = UDPConnection.new(ip, port.to_i, sha)
-          udp_socket.connect_to_udp_host
-        rescue SocketError
-          puts 'Unuseable UDP site'
+        tracker.connect
+        if tracker.connected?
+          @peers = tracker.address_list
+          break
         end
       end
 
-      while @peers.nil?
-        udp = @udp_trackers.shift
-        begin
-          @peers = udp.message_relay
-        rescue
-        end
-
-      end
-    end
-
-
-    # url gets reformatted to include query parameters
-
-    def raw_peers
-      begin
-        BEncode.load(Net::HTTP.get(@uri))['peers']
-      rescue
-        nil
-      end
-    end
-
-
-    def piece_length
-      stream['info']['piece length']
-    end
-
-    def sha
-      Digest::SHA1.digest(stream['info'].bencode)
-    end
-
-    # data stored as a hash in the order made necessary
-
-    def peer_hash
-      {
-        :info_hash => sha,
-        :peer_id   => PEER_ID,
-        :left      => piece_length,
-        :pieces    => stream['info']['files'] || stream['info']['name']
-      }
-    end
-
-    # Using the peers key of the torrent file, the hex-encoded data gets reinterpreted as ips addresses.
-
-    def peer_list
-      ip_list = []
-      until @peers.empty?
-        ip_list << { ip: @peers.slice!(0..3).bytes.join('.'), port: @peers.slice!(0..1).unpack("S>").first }
-      end
-
-      @peers = ip_list.map { |peer| Peer.new(peer, file_list, peer_info) }
-    end
-
-    def sha_list
-      n, e = 0, 20
-      list = []
-      until stream['info']['pieces'].bytesize < e
-        list << stream['info']['pieces'].byteslice(n...e)
-        n += 20
-        e += 20
-      end
-      list
+      establish_reactor if @peers
     end
 
     def peer_info
       {
-        :info_hash    => sha,
-        :piece_length => piece_length,
-        :sha_list     => sha_list,
-        :piece_index  => Array.new(sha_list.size) { false }
+        :info_hash    => @sha,
+        :piece_length => @piece_length,
+        :sha_list     => @sha_list,
+        :piece_index  => Array.new(@sha_list.size) { false }
       }
     end
 
-    def file_list
-      stream['info']['files'] || stream['info']
+    def parse_addresses(addr, size)
+      Array.new(size) do
+        peer = { :ip   => addr.slice!(0..3).bytes.join('.'), 
+                 :port => port(addr.slice!(0..1)) }
+        Peer.new(peer, @file_list, peer_info)
+      end
+    end
+
+    def port(addr)
+      addr.unpack("S>").first
+    end
+
+    def build_tracker(track)
+      track.include?('http://') ? HTTPTracker.new(track, stream) : UDPTracker.new(track, stream)
+    end
+
+    def sha_pieces
+      Array.new(@sha_list.bytesize / 20) { @sha_list.slice!(0..19) }
     end
 
     def establish_reactor
-      react = Reactor.new(@peers, sha_list, piece_length, file_list)
+      react = Reactor.new(@peers, @sha_list, @piece_length, @file_list)
       begin
         react.message_reactor
       end

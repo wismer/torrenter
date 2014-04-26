@@ -2,8 +2,10 @@ require 'torrenter/message/messager'
 require 'torrenter/message/message_types'
 require 'torrenter/peer'
 require 'torrenter/reactor'
-require 'torrenter/udp'
 require 'torrenter/torrent_reader'
+require 'torrenter/http_tracker'
+require 'torrenter/udp_tracker'
+
 module Torrenter
   class Torrent
     def start(file)

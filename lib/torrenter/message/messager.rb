@@ -4,7 +4,6 @@ module Torrenter
   # these methods get mixed in with the Peer class as a way to help 
   # organize and parse the byte-encoded data. The intention is to shorten
   # and shrink the complexity of the Peer class.
-
   # the following methods are responsible solely for data retrieval and data transmission
 
   def send_data(msg, opts={})
