@@ -37,17 +37,7 @@ module Torrenter
       Socket.getaddrinfo(@url, @port)[0][3]
     end
 
-    def connect_to_udp_host
-      begin
-        @socket.connect(@ip, @port)
-        return self
-      rescue
-        false
-      end
-    end
-
     def address_list
-
       @connection_id = @response[-8..-1]
       @transaction_id = [rand(10000)].pack("I>")
       send_msg(announce_msg)
@@ -55,7 +45,7 @@ module Torrenter
       read_response
     
       parse_announce if @response[0..3] == action(1)
-      parse_addresses(@response, @response.size)
+      parse_addresses(@response, @response.size / 6)
     end
 
     def parse_announce

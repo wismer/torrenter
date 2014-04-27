@@ -31,31 +31,38 @@ module Torrenter
     def message_reactor
       modify_index
       if !@master_index.all? { |index| index == :downloaded }
-        @peers.each { |peer| peer.connect if active_peers.size < 4 }
+        @peers.each { |peer| peer.connect if active_peers.size < 8 }
         puts "You are now connected to #{active_peers.size} peers."
         loop do
           break if @master_index.all? { |piece| piece == :downloaded }
           @peers.each do |peer|
-            $update = { index: indices, peer_count: peer_data }
-
+            # $update = { index: indices, peer_count: peer_data }
             piece_count = @master_index.count(:downloaded)
+
             if peer.status
               peer.state(@master_index, @blocks) # unless peer.piece_index.all? { |piece| piece == :downloaded }
+
               if @master_index.count(:downloaded) > piece_count
-                
                 system("clear")
                 puts download_bar + "Downloading from #{active_peers.size} active peers"
               end
-            elsif Time.now.to_i % 60 == 0
-              peer.connect
+            else
+              @peers.each { |peer| peer.connect if Time.now.to_i % 60 == 0 }
             end
           end
         end
-        stop_downloading
-        seperate_data_dump_into_files
       else
-        upload_data
+        # upload_data
       end
+      seperate_data_dump_into_files
+    end
+
+    def piece_done?(peer)
+      
+    end
+
+    def block_done?(peer)
+      
     end
 
     def indices
@@ -80,7 +87,7 @@ module Torrenter
     end
 
     def active_peers
-      @peers.select { |peer| peer.index && peer.status }
+      @peers.select { |peer| peer.status }
     end
 
     def index_percentages
@@ -122,7 +129,7 @@ module Torrenter
           offset += length
         end
       else
-        File.open("#{folder}/#{@file_list['name'].join}", 'w') { |data| data << File.read($data_dump) }
+        File.open("#{folder}/#{@file_list['name']}", 'w') { |data| data << File.read($data_dump) }
       end
       File.delete($data_dump)
     end

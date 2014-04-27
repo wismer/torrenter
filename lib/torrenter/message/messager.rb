@@ -26,7 +26,7 @@ module Torrenter
 
   def recv_data(bytes=BLOCK, opts={})
     begin
-      Timeout::timeout(2) { buffer << @socket.recv_nonblock(bytes) }
+      Timeout::timeout(5) { buffer << @socket.recv_nonblock(bytes) }
     rescue Timeout::Error
       ''
     rescue *EXCEPTIONS
@@ -131,6 +131,7 @@ module Torrenter
     elsif buffer.bytesize == 4 && buffer[0..3] == KEEP_ALIVE
       buffer.slice!(0..3)
     else
+
       # p @buffer[0..3].unp@buack("C*")
       case @buffer[4]
       when INTERESTED
@@ -144,17 +145,22 @@ module Torrenter
         parse_bitfield
         send_interested if buffer.empty?
       when PIECE
-        @length = buffer[0..3].unpack("N*").first + 4
-        if buffer.bytesize >= @length
+        @msg_length = buffer[0..3].unpack("N*").first + 4
 
+        if block_finished?
           buffer.slice!(0..12)
-          # the metadata is slireced off.
-          @offset += (@length - 13)
+
+          # the metadata is sliced off.
+
+          @offset += (@msg_length - 13)
+
           # buffer is reduced
+
           pack_buffer
           # that means the bytes for that block have been collected entirely.
           # the buffer becomes empty
           if pieces_remaining(master) > 1
+
             if piece_size == @piece_len
               pack_file(master)
               evaluate_index(master)
@@ -172,7 +178,7 @@ module Torrenter
             end
           end
         else
-          recv_data(@length - buffer.bytesize)
+          recv_data(@msg_length - buffer.bytesize)
         end
         # piece
       when CHOKE
@@ -197,7 +203,7 @@ module Torrenter
   end
 
   def pack_buffer
-    @block_map << @buffer.slice!(0...(@length - 13))
+    @block_map << @buffer.slice!(0...(@msg_length - 13))
   end
 
   def pack_file(master)
@@ -224,5 +230,13 @@ module Torrenter
 
   def pack(i)
     [i].pack("I>")
+  end
+
+  def block_finished?
+    buffer.bytesize >= @msg_length
+  end
+
+  def piece_finished?
+    
   end
 end

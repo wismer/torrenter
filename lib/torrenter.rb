@@ -1,3 +1,8 @@
+require 'socket'
+require 'digest/sha1'
+require 'bencode'
+require 'fileutils'
+require 'pry'
 require 'torrenter/message/messager'
 require 'torrenter/message/message_types'
 require 'torrenter/peer'

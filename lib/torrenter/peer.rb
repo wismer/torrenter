@@ -1,12 +1,9 @@
-# contains the peer information
 module Torrenter
   class Peer
     include Torrenter
-    # for non outside vars use the @ and remove them from
 
-    attr_reader :socket, :peer, :sha_list, :piece_len, :info_hash, :status, :index
+    attr_reader :socket, :peer, :sha_list, :piece_len, :info_hash, :status, :index, :msg_length
     attr_accessor :piece_index, :offset, :buffer, :block_map
-
 
     def initialize(peer, file_list, peer_info={})
       @peer            = peer
@@ -32,7 +29,7 @@ module Torrenter
     def connect
       puts "\nConnecting to IP: #{peer[:ip]} PORT: #{peer[:port]}"
       begin
-        Timeout::timeout(5) { @socket = TCPSocket.new(peer[:ip], peer[:port]) }
+        Timeout::timeout(1) { @socket = TCPSocket.new(peer[:ip], peer[:port]) }
       rescue Timeout::Error
         puts "Timed out."
       rescue Errno::EADDRNOTAVAIL
@@ -44,7 +41,7 @@ module Torrenter
       end
 
       if @socket
-
+        puts "Connected!"
         @socket.write(handshake)
         @status = true
       else
