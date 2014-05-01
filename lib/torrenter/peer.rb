@@ -5,17 +5,9 @@ module Torrenter
     attr_reader :socket, :peer, :sha_list, :piece_len, :info_hash, :status, :index, :msg_length
     attr_accessor :piece_index, :offset, :buffer, :block_map
 
-    def initialize(peer, file_list, peer_info={})
-      @peer            = peer
-      @info_hash       = peer_info[:info_hash]
-      @piece_len       = peer_info[:piece_length]
-      @sha_list        = peer_info[:sha_list]
-      @piece_index     = peer_info[:piece_index]
-      @buffer          = ''
-      @block_map       = []
-      @offset          = 0
-      @file_list       = file_list
-      @status          = false
+    def initialize(peer_data)
+      @ip   = peer_data[0..3].join('.')
+      @port = (peer_data[4] * 256) + peer_data[5]
     end
 
     def total_file_size

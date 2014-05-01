@@ -47,9 +47,7 @@ module Torrenter
     end
 
     def peer_list(bytestring)
-      bytestring.bytes.each_slice(6).map do |peer_data|
-        Peer.new(peer_data[0..3], peer_data[4..5])
-      end
+      bytestring.bytes.each_slice(6).map { |peer_data| Peer.new(peer_data, '1') }
     end
   end
 end
