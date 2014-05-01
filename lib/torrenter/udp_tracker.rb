@@ -3,17 +3,17 @@ module Torrenter
     attr_reader :socket, :response
 
     def initialize(tracker, stream)
+      super(stream)
       @url           = tracker[/(?<=udp\:\/\/).+(?=\:\d+)/]
       @port          = tracker[/\d+$/].to_i
       @socket        = UDPSocket.new
       @connection_id = [0x41727101980].pack("Q>")
-      super(stream)
     end
 
     def connect
+      @transaction_id = [rand(1000)].pack("I>")
+      @socket.connect(ip_addr, @port)
       begin
-        @transaction_id = [rand(1000)].pack("I>")
-        @socket.connect(ip_addr, @port)
         send_msg(connect_msg)
         read_response
       rescue
@@ -37,15 +37,16 @@ module Torrenter
       Socket.getaddrinfo(@url, @port)[0][3]
     end
 
-    def address_list
+    def peers
       @connection_id = @response[-8..-1]
       @transaction_id = [rand(10000)].pack("I>")
       send_msg(announce_msg)
 
       read_response
-    
+
       parse_announce if @response[0..3] == action(1)
-      parse_addresses(@response, @response.size / 6)
+
+      peer_list(@response)
     end
 
     def parse_announce
@@ -86,7 +87,7 @@ module Torrenter
     def action(n)
       [n].pack("I>")
     end
-    
+
     def announce_msg
       @connection_id + action(1) + @transaction_id + @sha + PEER_ID + [0].pack("Q>") + [0].pack("Q>") + [0].pack("Q>") + action(0) + action(0) + action(0) + action(-1) + [@socket.addr[1]].pack(">S")
     end

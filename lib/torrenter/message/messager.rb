@@ -14,13 +14,6 @@ module Torrenter
     rescue *EXCEPTIONS
       @status = false
       ''
-    #   ''
-    # rescue Errno::ECONNREFUSED
-    #   @status = false
-    #   ''
-    # rescue Errno::EPIPE
-    #   @status = false
-    #   ''
     end
   end
 
@@ -32,16 +25,8 @@ module Torrenter
     rescue *EXCEPTIONS
       @status = false
       ''
-    #   ''
-    # rescue Errno::ECONNREFUSED
-    #   ''
-    # rescue Errno::ECONNRESET
-    #   ''
     rescue IO::EAGAINWaitReadable
       ''
-    # rescue Errno::ETIMEDOUT
-    #   @status = false
-    #   @buffer = ''
     end
   end
 

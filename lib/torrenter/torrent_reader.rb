@@ -1,74 +1,55 @@
 module Torrenter
+  # torrent reader should only read the torrent file and return either
+  # a UDP tracker object or an HTTP tracker object
   class TorrentReader
-    attr_reader :stream
+    attr_reader :stream, :peers
     def initialize(stream)
-      @stream       = stream
-      @file_list    = stream['info']['files'] || stream['info']
-      @sha          = Digest::SHA1.digest(stream['info'].bencode)
-      @piece_length = stream['info']['piece length']
-      @sha_list     = stream['info']['pieces']
-      @sha_size     = stream['info']['pieces'].size / 20
+      @stream = stream
+      @peers  = []
     end
 
-    def determine_protocol
-      trackers =  if @stream['announce-list']
-                    @stream['announce-list'].flatten << @stream['announce']
-                  else
-                    [@stream['announce']]
-                  end
-      
-      trackers.each do |track|
-        puts track
-        tracker = build_tracker(track)
+    def info_hash
+      Digest::SHA1.digest(@stream['info'].bencode)
+    end
 
-        tracker.connect
-        if tracker.connected?
-          @peers = tracker.address_list
+    def sha_hash_list
+      @stream['info']['pieces'].scan(/(.{20})/).flatten
+    end
+
+    def piece_length
+      @stream['info']['piece length']
+    end
+
+    def file_list
+      @stream['info']['files'] || @stream['info']
+    end
+
+    def announce_url
+      @stream['announce']
+    end
+
+    def announce_list
+      @stream['announce-list']
+    end
+
+    def url_list
+      announce_list ? announce_list.flatten << announce_url : [announce_url]
+    end
+
+    def access_trackers
+      url_list.map do |track|
+        if track.include?("http://")
+          HTTPTracker.new(track, @stream)
+        else
+          UDPTracker.new(track, @stream)
         end
-
-        break if @peers
-      end
-
-      if @peers
-        establish_reactor
       end
     end
 
-    def peer_info
-      {
-        :info_hash    => @sha,
-        :piece_length => @piece_length,
-        :sha_list     => sha_pieces,
-        :piece_index  => Array.new(@sha_list.size) { false }
-      }
-    end
-
-    def parse_addresses(addr, size)
-      Array.new(size) do
-        peer = { :ip   => addr.slice!(0..3).bytes.join('.'), 
-                 :port => port(addr.slice!(0..1)) }
-        Peer.new(peer, @file_list, peer_info)
+    def peer_list(bytestring)
+      bytestring.bytes.each_slice(6).map do |peer_data|
+        Peer.new(peer_data[0..3], peer_data[4..5])
       end
-    end
-
-    def port(addr)
-      addr.unpack("S>").first
-    end
-
-    def build_tracker(track)
-      track.include?('http://') ? HTTPTracker.new(track, stream) : UDPTracker.new(track, stream)
-    end
-
-    def sha_pieces
-      start, term = -20, 0
-      Array.new(@sha_size) { start += 20; term += 20; @sha_list[start...term]}
-    end
-
-    def establish_reactor
-      react = Reactor.new(@peers, sha_pieces, @piece_length, @file_list)
-      react.message_reactor
     end
   end
 end
-
-

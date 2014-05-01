@@ -36,7 +36,7 @@ module Torrenter
         loop do
           break if @master_index.all? { |piece| piece == :downloaded }
           @peers.each do |peer|
-            # $update = { index: indices, peer_count: peer_data }
+            $update = { index: indices, peer_count: peer_data }
             piece_count = @master_index.count(:downloaded)
 
             if peer.status
