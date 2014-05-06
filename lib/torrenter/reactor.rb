@@ -2,30 +2,25 @@ module Torrenter
   class Reactor < Torrenter::TorrentReader
     # include Torrenter
     def initialize(peers, stream)
+      super(stream)
       @peers        = peers
       @master_index = Array.new(sha_hashes.bytesize / 20) { :free }
-      super(stream)
-      # @master_index = Array.new(sha_list.size) { :free }
-      # @blocks       = piece_length / BLOCK
-      # @file_list    = file_list
-      # @piece_length = piece_length
-      # @sha_list     = sha_list
-      # @data_size    = if file_list.is_a?(Array)
-      #                   file_list.map { |f| f['length'] }.inject { |x, y| x + y }
-      #                 else
-      #                   file_list['length']
-      #                 end
     end
 
-    def modify_index
+    def check_for_existing_data
+      # if the torrent data file is not present, one will be created
       IO.write($data_dump, '', 0) unless File.exists?($data_dump)
       file_size = File.size($data_dump)
       0.upto(@sha_list.size - 1) do |n|
-        data = IO.read($data_dump, @piece_length, n * @piece_length) || ''
-        @master_index[n] = :downloaded if Digest::SHA1.digest(data) == @sha_list[n]
+        data = IO.read($data_dump, piece_length, n * piece_length) || ''
+        @master_index[n] = :downloaded if hash_check?(n, data)
       end
       $update = { index: indices }
       puts "#{@master_index.count(:downloaded)} pieces are downloaded already."
+    end
+
+    def hash_check?(loc, piece)
+      Digest::SHA1.digest(piece) == sha_hashes[loc * 20..(loc * 20) + 19]
     end
 
     # sends the handshake messages.
