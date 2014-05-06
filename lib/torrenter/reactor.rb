@@ -1,18 +1,20 @@
 module Torrenter
-  class Reactor
-    include Torrenter
-    def initialize(peers, sha_list, piece_length, file_list)
+  class Reactor < Torrenter::TorrentReader
+    # include Torrenter
+    def initialize(peers, stream)
       @peers        = peers
-      @master_index = Array.new(sha_list.size) { :free }
-      @blocks       = piece_length / BLOCK
-      @file_list    = file_list
-      @piece_length = piece_length
-      @sha_list     = sha_list
-      @data_size    = if file_list.is_a?(Array)
-                        file_list.map { |f| f['length'] }.inject { |x, y| x + y }
-                      else
-                        file_list['length']
-                      end
+      @master_index = Array.new(sha_hashes.bytesize / 20) { :free }
+      super(stream)
+      # @master_index = Array.new(sha_list.size) { :free }
+      # @blocks       = piece_length / BLOCK
+      # @file_list    = file_list
+      # @piece_length = piece_length
+      # @sha_list     = sha_list
+      # @data_size    = if file_list.is_a?(Array)
+      #                   file_list.map { |f| f['length'] }.inject { |x, y| x + y }
+      #                 else
+      #                   file_list['length']
+      #                 end
     end
 
     def modify_index

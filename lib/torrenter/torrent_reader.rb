@@ -2,18 +2,21 @@ module Torrenter
   # torrent reader should only read the torrent file and return either
   # a UDP tracker object or an HTTP tracker object
   class TorrentReader
-    attr_reader :stream, :peers
+    attr_reader :stream
     def initialize(stream)
       @stream = stream
-      @peers  = []
     end
 
     def info_hash
       Digest::SHA1.digest(@stream['info'].bencode)
     end
 
-    def sha_hash_list
-      @stream['info']['pieces'].scan(/(.{20})/).flatten
+    def sha_hashes
+      @stream['info']['pieces']
+    end
+
+    def total_file_size
+      file_list.is_a?(Array) ? file_list.inject { |x,y| x + y } : file_list['length']
     end
 
     def piece_length
@@ -47,7 +50,7 @@ module Torrenter
     end
 
     def peer_list(bytestring)
-      bytestring.bytes.each_slice(6).map { |peer_data| Peer.new(peer_data, '1') }
+      bytestring.bytes.each_slice(6).map { |peer_data| Peer.new(peer_data) }
     end
   end
 end

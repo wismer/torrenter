@@ -19,9 +19,9 @@ module Torrenter
     end
 
     def connect
-      puts "\nConnecting to IP: #{peer[:ip]} PORT: #{peer[:port]}"
+      puts "\nConnecting to IP: #{@ip} PORT: #{@port}"
       begin
-        Timeout::timeout(1) { @socket = TCPSocket.new(peer[:ip], peer[:port]) }
+        Timeout::timeout(1) { @socket = TCPSocket.new(@ip, @port) }
       rescue Timeout::Error
         puts "Timed out."
       rescue Errno::EADDRNOTAVAIL

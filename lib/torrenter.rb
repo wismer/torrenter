@@ -3,13 +3,13 @@ require 'digest/sha1'
 require 'bencode'
 require 'fileutils'
 require 'pry'
-require 'torrenter/message/messager'
-require 'torrenter/message/message_types'
-require 'torrenter/peer'
-require 'torrenter/reactor'
-require 'torrenter/torrent_reader'
-require 'torrenter/http_tracker'
-require 'torrenter/udp_tracker'
+# require 'torrenter/message/messager'
+# require 'torrenter/message/message_types'
+# require 'torrenter/peer'
+# require 'torrenter/reactor'
+# require 'torrenter/torrent_reader'
+# require 'torrenter/http_tracker'
+# require 'torrenter/udp_tracker'
 
 # reader just reads the torrent file
 # trackers just get peer ips and ports
@@ -32,6 +32,8 @@ module Torrenter
       end
 
       @peers = @torrent.bound_peers
+      binding.pry
+      reactor = Reactor.new(@peers, stream)
     end
   end
 end
