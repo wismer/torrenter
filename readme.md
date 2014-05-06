@@ -1,6 +1,11 @@
 Torrenter
 =========
 
+please note! Currently broken, in process of being refactored!
+------
+
+
+
 A simple implementation of a BitTorrent client in Ruby. As of last edit, this
 version supports TCP and UDP trackers, but there is no support for scraping (querying web html/xml for necessary data). The download strategy follows the sequential ordering of the pieces (i.e. pieces that are selected for downloading are done in order that they appear). There is a more optimized strategy for downloading pieces that follows the "rarest" piece first, but that method would be prohibitive for doing content streaming. This gem also supports resumption of incomplete downloads, supports multi-file
 torrents (like music albums) and sports a download meter in the terminal!
