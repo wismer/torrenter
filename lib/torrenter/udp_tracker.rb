@@ -37,7 +37,7 @@ module Torrenter
       Socket.getaddrinfo(@url, @port)[0][3]
     end
 
-    def peers
+    def bound_peers
       @connection_id = @response[-8..-1]
       @transaction_id = [rand(10000)].pack("I>")
       send_msg(announce_msg)
@@ -77,7 +77,7 @@ module Torrenter
     end
 
     def announce_input
-      @connection_id + action(1) + @transaction_id + @sha + PEER_ID
+      @connection_id + action(1) + @transaction_id + info_hash + PEER_ID
     end
 
     def connect_msg
@@ -89,7 +89,7 @@ module Torrenter
     end
 
     def announce_msg
-      @connection_id + action(1) + @transaction_id + @sha + PEER_ID + [0].pack("Q>") + [0].pack("Q>") + [0].pack("Q>") + action(0) + action(0) + action(0) + action(-1) + [@socket.addr[1]].pack(">S")
+      @connection_id + action(1) + @transaction_id + info_hash + PEER_ID + [0].pack("Q>") + [0].pack("Q>") + [0].pack("Q>") + action(0) + action(0) + action(0) + action(-1) + [@socket.addr[1]].pack(">S")
     end
   end
 end
