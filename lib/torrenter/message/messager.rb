@@ -132,8 +132,12 @@ module Torrenter
       Timeout::timeout(2) { @socket.sendmsg_nonblock(msg) }
     rescue Timeout::Error
       ''
+    rescue IO::EAGAINWaitReadable
+      ''
     rescue *EXCEPTIONS
       ''
+    rescue Errno::ETIMEDOUT
+      @peer_state = false
     end
   end
 
@@ -142,6 +146,8 @@ module Torrenter
       Timeout::timeout(5) { @buffer << @socket.recv_nonblock(bytes) }
     rescue Timeout::Error
       ''
+    rescue Errno::ETIMEDOUT
+      @peer_state = false
     rescue *EXCEPTIONS
       ''
     rescue IO::EAGAINWaitReadable
