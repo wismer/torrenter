@@ -9,5 +9,5 @@ module Torrenter
   PIECE      = "\a"
   CHOKE      = "\x00"
   PROTOCOL = "\x13BitTorrent protocol\x00\x00\x00\x00\x00\x00\x00\x00"
-  EXCEPTIONS = [Errno::EADDRNOTAVAIL, Errno::ECONNREFUSED, Errno::EPIPE, Errno::ECONNRESET]
+  EXCEPTIONS = [Errno::EADDRNOTAVAIL, Errno::ECONNREFUSED, Errno::EPIPE, Errno::ECONNRESET, IO::EAGAINWaitWritable]
 end
