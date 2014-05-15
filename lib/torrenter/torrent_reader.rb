@@ -50,7 +50,11 @@ module Torrenter
     end
 
     def peer_list(bytestring)
-      bytestring.bytes.each_slice(6).map { |peer_data| Peer.new(peer_data) }
+      bytestring.chars.each_slice(6).map do |peer_data|
+        ip = peer_data[0..3].join('').bytes.join('.')
+        port = peer_data[4..5].join('').unpack("S>").first
+        Peer.new(ip, port, info_hash, piece_length)
+      end
     end
   end
 end
