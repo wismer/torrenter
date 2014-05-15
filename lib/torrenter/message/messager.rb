@@ -5,90 +5,7 @@ module Torrenter
   # organize and parse the byte-encoded data. The intention is to shorten
   # and shrink the complexity of the Peer class.
   # the following methods are responsible solely for data retrieval and data transmission
-
-  def send_data(msg, opts={})
-    begin
-      Timeout::timeout(2) { @socket.sendmsg_nonblock(msg) }
-    rescue Timeout::Error
-      ''
-    rescue *EXCEPTIONS
-      @status = false
-      ''
-    end
-  end
-
-  def recv_data(bytes=BLOCK, opts={})
-    begin
-      Timeout::timeout(5) { buffer << @socket.recv_nonblock(bytes) }
-    rescue Timeout::Error
-      ''
-    rescue *EXCEPTIONS
-      @status = false
-      ''
-    rescue IO::EAGAINWaitReadable
-      ''
-    end
-  end
-
-  # the next few methods responsibility is for parsing the buffer. 
-  # They are responsible for the critical step of analyzing the buffer,
-  # checking for message consistency from the peer (and if it fails a test
-  # another message is sent out to attempt to fix the missing data)
-  
-
-  # parse message will be the gatekeeper. If the buffer is ever low in the READ part
-  # of the torrent program, then it knows more data may be required.
-  # It will also be responsble for EVERY new message that gets received, whether
-  # its in the download sequence of messaging or in the actual handshake, it will
-  # control it that way.
-
-  # for now, I'm assuming that at least the bitfield will be sent in full
-
-  def parse_bitfield
-    len = msg_len
-    buffer.slice!(0)
-    @piece_index = buffer.slice!(0...len)
-      .unpack("B#{sha_list.size}")
-      .first
-      .split('')
-      .map { |bit| bit == '1' ? :available : :unavailable }
-  end
-
-  def send_interested
-    send_data("\x00\x00\x00\x01\x02")
-  end
-
-  def parse_have
-    if buffer[5..8].bytesize == 4
-      index = buffer[5..8].unpack("N*").first
-      @piece_index[index] = :available
-      buffer.slice!(0..8)
-    else
-      recv_data
-    end
-    send_interested if @buffer.empty?
-  end
-
-  # because ruby.
-
-  def parse_handshake
-    @buffer.slice!(0..67) if hash_match?
-  end
-
-  def hash_match?
-    @buffer.unpack("A*").first[28..47] == info_hash
-  end
-
-  # the negative 1 modifier is for factoring in the id
-
-  def msg_len
-    @buffer.slice!(0..3).unpack("N*").first - 1
-  end
-
-  # needs optimization. It evaluates the master index lazily with 
-  # no thought as to the 'rare pieces'
-
-  def evaluate_index(master)
+  def pick_piece(master)
     if @piece_index.any? { |chunk| chunk == :available }
       @index = @piece_index.index(:available)
       if master[@index] == :free
@@ -96,132 +13,141 @@ module Torrenter
         master[@index] = :downloading
       else
         @piece_index[@index] = :downloaded
-        evaluate_index(master)
+        pick_piece(master)
       end
     end
   end
 
-  def modify_index(master)
-    master.each_with_index do |v,i|
-      if v == :downloaded
-        @piece_index[i] = :downloaded
-      end
-    end
-  end
-
-  def state(master, blocks)
-    @buffer_state = @buffer[4]
-    if buffer.bytesize <= 3 
-      recv_data
-    elsif buffer.bytesize == 4 && buffer[0..3] == KEEP_ALIVE
-      buffer.slice!(0..3)
+  def state(master_index)
+    recv_data if @buffer.size <= 3
+    if @buffer[4].nil?
+      @buffer.slice!(0..3) if @buffer[0..3] == KEEP_ALIVE
     else
-
-      # p @buffer[0..3].unp@buack("C*")
-      case @buffer[4]
-      when INTERESTED
-        buffer.slice!(0..4)
-        modify_index(master)
-        evaluate_index(master)
-        request_message
-      when HAVE
-        parse_have
+      @length    = @buffer[0..3].unpack("N*").last
+      @buffer_id = @buffer[4]
+      case @buffer_id
       when BITFIELD
-        parse_bitfield
-        send_interested if buffer.empty?
+        process_bitfield(master_index.size, clear_msg)
+      when HAVE
+        process_have(clear_msg)
+      when INTERESTED
+        request_piece(master_index)
       when PIECE
-        @msg_length = buffer[0..3].unpack("N*").first + 4
-
-        if block_finished?
-          buffer.slice!(0..12)
-
-          # the metadata is sliced off.
-
-          @offset += (@msg_length - 13)
-
-          # buffer is reduced
-
-          pack_buffer
-          # that means the bytes for that block have been collected entirely.
-          # the buffer becomes empty
-          if pieces_remaining(master) > 1
-
-            if piece_size == @piece_len
-              pack_file(master)
-              evaluate_index(master)
-              request_message
-            else
-              request_message
-            end
-          elsif (File.size($data_dump) + piece_size) == total_file_size
-            pack_file(master)
-          else
-            if bytes_remaining >= BLOCK
-              request_message
-            else
-              request_message(bytes_remaining)
-            end
-          end
-        else
-          recv_data(@msg_length - buffer.bytesize)
-        end
-        # piece
-      when CHOKE
-        buffer.slice!(0..3)
-        send_interested
+        process_piece
+      when CHOKE      
+        choke_message
       when HANDSHAKE
-        parse_handshake
+        process_handshake
       end
     end
   end
 
-  def pieces_remaining(master)
-    master.count(:downloading) + master.count(:free)
+  def choke_message
+    @peer_state = false
   end
 
-  def bytes_remaining
-    (total_file_size - File.size($data_dump)) - piece_size
+  def request_piece(master)
+    @blocks = []
+    @buffer = ''
+    pick_piece(master)
+    request_message
   end
 
-  def piece_size
-    @block_map.join.bytesize
-  end
-
-  def pack_buffer
-    @block_map << @buffer.slice!(0...(@msg_length - 13))
-  end
-
-  def pack_file(master)
-    data = @block_map.join
-    if piece_verified?(data)
-      IO.write($data_dump, data, @index * @offset)
-      master[@index] = :downloaded
-      @piece_index[@index] = :downloaded
-    else
-      master[@index] = :free
-      @piece_index[@index] = :downloaded
-    end
-    @block_map = []
-    @offset = 0
-  end
-
-  def piece_verified?(data)
-    Digest::SHA1.digest(data) == sha_list[@index]
+  def clear_msg
+    @buffer.slice!(0..@length + 3)  
   end
 
   def request_message(bytes=BLOCK)
-    send_data(pack(13) + "\x06" + pack(@index) + pack(@offset) + pack(bytes))
+    send_data(pack(13) + "\x06" + pack(@index) + pack(@blocks.size * bytes) + pack(bytes))
   end
 
-  def pack(i)
-    [i].pack("I>")
+  def pack(msg)
+    [msg].pack("I>")
   end
 
-  def block_finished?
-    buffer.bytesize >= @msg_length
+  def process_bitfield(size, msg)
+    index = msg[5..-1].unpack("B#{size}").join.split('')
+    @piece_index = index.map { |bit| bit == '1' ? :available : :unavailable }
+    send_interested if @buffer.empty?
   end
 
-  def piece_finished?
-    
+  def process_have(msg)
+    @piece_index[msg[5..-1].unpack("C*").last] = :available
+    send_interested if @buffer.empty?
+  end
+
+  def send_interested
+    send_data("\x00\x00\x00\x01\x02")
+  end
+
+  def process_piece
+    if @buffer.bytesize >= @length + 4
+      pack_buffer if buffer_complete?
+      # binding.pry if @blocks.size == 63
+      if @blocks.join('').bytesize != @piece_length
+        request_message
+      else
+        p "#{@ip} #{@port}"
+      end
+    else
+      recv_data
+    end
+  end
+
+  def piece_complete?
+    piece_size == @piece_length
+  end
+
+  def buffer_size
+    @buffer[13..-1].bytesize
+  end
+
+  def pack_buffer
+    @blocks << @buffer.slice!(13..-1)
+    @buffer.clear
+  end
+
+  def buffer_complete?
+    @buffer.bytesize == @length + 4
+  end
+
+  # will need a last piece sort of thing inserted in here
+
+  def piece_full?
+    @blocks.join('').size == @piece_len
+  end
+
+  def piece_size
+    @blocks.join('').bytesize + (@buffer.bytesize - 13)
+  end
+
+  def process_handshake
+    @buffer.slice!(0..67) if hash_check?
+  end
+
+  def hash_check?
+    @buffer[28..47] == @info_hash
+  end
+
+  def send_data(msg)
+    begin
+      Timeout::timeout(2) { @socket.sendmsg_nonblock(msg) }
+    rescue Timeout::Error
+      ''
+    rescue *EXCEPTIONS
+      ''
+    end
+  end
+
+  def recv_data(bytes=BLOCK)
+    begin
+      Timeout::timeout(5) { @buffer << @socket.recv_nonblock(bytes) }
+    rescue Timeout::Error
+      ''
+    rescue *EXCEPTIONS
+      ''
+    rescue IO::EAGAINWaitReadable
+      ''
+    end
   end
 end
