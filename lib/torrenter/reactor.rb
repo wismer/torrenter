@@ -1,6 +1,7 @@
 module Torrenter
   class Reactor < Torrenter::TorrentReader
     # include Torrenter
+    attr_accessor :master_index
     def initialize(peers, stream)
       super(stream)
       @peers        = peers
