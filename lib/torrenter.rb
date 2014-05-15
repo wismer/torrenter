@@ -32,8 +32,9 @@ module Torrenter
       end
 
       @peers = @torrent.bound_peers
-      binding.pry
       reactor = Reactor.new(@peers, stream)
+      reactor.check_for_existing_data
+      reactor.message_reactor
     end
   end
 end
