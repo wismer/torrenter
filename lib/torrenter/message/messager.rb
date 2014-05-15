@@ -86,8 +86,6 @@ module Torrenter
       # binding.pry if @blocks.size == 63
       if @blocks.join('').bytesize != @piece_length
         request_message
-      else
-        p "#{@ip} #{@port}"
       end
     else
       recv_data
