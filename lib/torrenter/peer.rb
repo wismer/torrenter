@@ -1,21 +1,27 @@
 module Torrenter
   class Peer
     include Torrenter
+    attr_reader :status, :peer_state, :info_hash, :piece_length, :blocks, :buffer, :index
+    attr_accessor :piece_index
 
-    attr_reader :socket, :peer, :sha_list, :piece_len, :info_hash, :status, :index, :msg_length
-    attr_accessor :piece_index, :offset, :buffer, :block_map
+    # attr_reader :socket, :peer, :sha_list, :piece_len, :info_hash, :status, :index, :msg_length
+    # attr_accessor :piece_index, :offset, :buffer, :block_map
 
-    def initialize(peer_data)
-      @ip   = peer_data[0..3].join('.')
-      @port = (peer_data[4] * 256) + peer_data[5]
+    def initialize(ip, port, info_hash, piece_length)
+      @ip           = ip
+      @port         = port
+      @info_hash    = info_hash
+      @piece_length = piece_length
+      @buffer       = ''
+      @blocks       = []
     end
 
-    def total_file_size
-      if @file_list.is_a?(Array)
-        @file_list.map { |f| f['length'] }.inject { |x, y| x + y }
-      else
-        @file_list['length']
-      end
+    def full_piece?
+      piece_data.size == @piece_length
+    end
+
+    def piece_data
+      @blocks.join('')
     end
 
     def connect
@@ -35,9 +41,9 @@ module Torrenter
       if @socket
         puts "Connected!"
         @socket.write(handshake)
-        @status = true
+        @peer_state = true
       else
-        @status = false
+        @peer_state = false
       end
     end
 
@@ -45,8 +51,8 @@ module Torrenter
       "#{PROTOCOL}#{@info_hash}#{PEER_ID}"
     end
 
-    def msg_num
-      @buffer.slice!(0..3).unpack("N*").first
+    def connected?
+      @peer_state
     end
   end
 end
