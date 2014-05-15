@@ -21,8 +21,7 @@ class TestTorrentReader < Minitest::Test
 
   def test_lists_are_array
     assert_kind_of Array, @reader.url_list
-    assert_kind_of Array, @reader.sha_hash_list
-    assert_kind_of Array, @reader.trackers
+    assert_kind_of Array, @reader.access_trackers
   end
 
   def test_info_hash_length
@@ -30,6 +29,10 @@ class TestTorrentReader < Minitest::Test
   end
 
   def test_sha_hash_list_is_of_correct_length
-    assert @reader.sha_hash_list.all? { |sha| sha.length == 20 }
+    assert @reader.sha_hashes.bytesize % 20 == 0
+  end
+
+  def test_piece_length
+    assert_kind_of Integer, @reader.piece_length
   end
 end
