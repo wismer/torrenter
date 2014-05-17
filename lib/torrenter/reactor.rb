@@ -56,8 +56,7 @@ module Torrenter
               peer.request_piece(@master_index)
             end
           end
-
-
+          
           reattempt_disconnected_peers if Time.now.to_i % 300 == 0
 
           if (Time.now.to_i - time) == 1
@@ -91,10 +90,6 @@ module Torrenter
     def index_select(peer)
       @master_index[peer.index] = :downloaded
     end
-
-    # def piece_match?(peer)
-    #   Digest::SHA1.digest(peer.buffer_state) == sha_hashes[peer.index * 20..(peer.index * 20) + 19]
-    # end
 
     def pack_piece(peer)
       IO.write($data_dump, peer.piece_data, piece_length * peer.index)
