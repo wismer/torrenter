@@ -37,3 +37,4 @@ TODO
 * Remove redundant instance variables in peer class
 * Reconnect to trackers on set time intervals as indicated by the tracker
 * Implement "rarest first" download strategy
+* Write unit tests
