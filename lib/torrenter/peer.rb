@@ -1,11 +1,9 @@
 module Torrenter
   class Peer
     include Torrenter
+
     attr_reader :status, :peer_state, :info_hash, :piece_length, :blocks, :buffer, :index
     attr_accessor :piece_index
-
-    # attr_reader :socket, :peer, :sha_list, :piece_len, :info_hash, :status, :index, :msg_length
-    # attr_accessor :piece_index, :offset, :buffer, :block_map
 
     def initialize(ip, port, info_hash, piece_length)
       @ip           = ip
