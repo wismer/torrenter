@@ -52,26 +52,20 @@ module Torrenter
               pack_piece(peer)
               # pick new pieces
               index_select(peer)
-
+              # request the next piece
               peer.request_piece(@master_index)
-
-              # puts "#{@master_index.count(:downloaded)} pieces downloaded so far."
             end
           end
 
 
           reattempt_disconnected_peers if Time.now.to_i % 300 == 0
+
           if (Time.now.to_i - time) == 1
             rates = bench.map.with_index do |r,i|
               rate(r, i)
             end
             system('clear')
-            puts "#{rates.inject { |x,y| x + y }.round(1)} KB/sec"
-            # download_data.each_with_index do |r,i|
-            #   p (r - rates[i]).fdiv(1000)
-            # end
-            # i = 0
-            # rate = (download_data[i] - rates[i]).fdiv(1000)
+            puts "Downloading #{$data_dump[/(.+)(?=torrent-data)/]} at #{rates.inject { |x,y| x + y }.round(1)} KB/sec"
           end
         end
       end
