@@ -38,14 +38,29 @@ module Torrenter
       if !finished?
 
         connect_peers
-        
+        @counter = 0
+        @time = Time.now.to_i
         puts "You are now connected to #{active_peers.size} peers."
         loop do
-          time = Time.now.to_i
-          bench = download_data
           break if finished?
+          
+          if Time.now.to_i - @time == 1
+            @counter = 0
+          end
+
+          @time = Time.now.to_i
+
           @peers.each do |peer|
+
+            datasize = peer.current_size
+            
             peer.state(@master_index) if peer.connected?
+
+            current = peer.current_size - datasize
+
+            if current > 0
+              @counter += current
+            end
 
             if peer.full_piece? && piece_match?(peer.index, peer.piece_data)
               # piece gets committed to the data dump
@@ -56,27 +71,29 @@ module Torrenter
               peer.request_piece(@master_index)
             end
           end
-          
+
           reattempt_disconnected_peers if Time.now.to_i % 300 == 0
 
-          if (Time.now.to_i - time) == 1
-            rates = bench.map.with_index do |r,i|
-              rate(r, i)
-            end
+          if (Time.now.to_i - @time) == 1
             system('clear')
-            puts "Downloading #{$data_dump[/(.+)(?=torrent-data)/]} at #{rates.inject { |x,y| x + y }.round(1)} KB/sec"
+            puts "#{download_bar} \n Downloading #{$data_dump[/(.+)(?=torrent-data)/]} at #{real} KB/sec with #{pieces_left} pieces left to download"
+            puts "and #{data_remaining} MB remaining"
           end
         end
       end
-      seperate_data_dump_into_files
+      seperate_data_dump_into_files if @master_index.all? { |x| x == :downloaded }
     end
 
-    def rate(r, i)
-      ((active_peers[i].piece_data.bytesize + active_peers[i].buffer.bytesize) - r).fdiv(1000)
+    def data_remaining
+      (total_file_size - File.size($data_dump)).fdiv(1024).fdiv(1024).round(2)
     end
 
-    def download_data
-      active_peers.map { |peer| peer.blocks.join('').bytesize }
+    def pieces_left
+      @master_index.count(:free)
+    end
+
+    def real
+      @counter.fdiv(1024).round(1)
     end
 
     def reattempt_disconnected_peers
