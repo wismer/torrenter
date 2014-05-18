@@ -52,9 +52,10 @@ module Torrenter
           @time = Time.now.to_i
 
           @peers.each do |peer|
+            peer.remaining = remaining
 
             datasize = peer.current_size
-            
+
             peer.state(@master_index) if peer.connected?
 
             current = peer.current_size - datasize
@@ -74,17 +75,20 @@ module Torrenter
               end
             end
           end
-
           reattempt_disconnected_peers if Time.now.to_i % 300 == 0
 
-          if (Time.now.to_i - @time) == 1
-            system('clear')
-            puts "#{download_bar} \n Downloading #{$data_dump[/(.+)(?=torrent-data)/]} at #{real} KB/sec with #{pieces_left} pieces left to download"
-            puts "and #{data_remaining} MB remaining"
-          end
+          show_status
         end
       end
       seperate_data_dump_into_files
+    end
+
+    def show_status
+      if (Time.now.to_i - @time) == 1
+        system('clear')
+        puts "#{download_bar} \n Downloading #{$data_dump[/(.+)(?=torrent-data)/]} at #{real} KB/sec with #{pieces_left} pieces left to download"
+        puts "and #{data_remaining} MB remaining"
+      end      
     end
 
     def remaining
