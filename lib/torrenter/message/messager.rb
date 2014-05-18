@@ -6,11 +6,12 @@ module Torrenter
   # and shrink the complexity of the Peer class.
   # the following methods are responsible solely for data retrieval and data transmission
   def pick_piece(master)
-    if @piece_index.any? { |chunk| chunk == :available }
-      @index = @piece_index.index(:available)
+    if @piece_index.any? { |chunk| chunk == :free }
+      @index = @piece_index.index(:free)
       if master[@index] == :free
         @piece_index[@index] = :downloading
         master[@index] = :downloading
+        @offset = 0
       else
         @piece_index[@index] = :downloaded
         pick_piece(master)
@@ -58,7 +59,7 @@ module Torrenter
   end
 
   def request_message(bytes=BLOCK)
-    send_data(pack(13) + "\x06" + pack(@index) + pack(@blocks.size * bytes) + pack(bytes))
+    send_data(pack(13) + "\x06" + pack(@index) + pack(@blocks.size * BLOCK) + pack(bytes))
   end
 
   def pack(msg)
@@ -67,12 +68,12 @@ module Torrenter
 
   def process_bitfield(size, msg)
     index = msg[5..-1].unpack("B#{size}").join.split('')
-    @piece_index = index.map { |bit| bit == '1' ? :available : :unavailable }
+    @piece_index = index.map { |bit| bit == '1' ? :free : :unavailable }
     send_interested if @buffer.empty?
   end
 
   def process_have(msg)
-    @piece_index[msg[5..-1].unpack("C*").last] = :available
+    @piece_index[msg[5..-1].unpack("C*").last] = :free
     send_interested if @buffer.empty?
   end
 
@@ -82,14 +83,25 @@ module Torrenter
 
   def process_piece
     if @buffer.bytesize >= @length + 4
-      pack_buffer if buffer_complete?
-      # binding.pry if @blocks.size == 63
-      if @blocks.join('').bytesize != @piece_length
-        request_message
+
+      if buffer_complete?
+        pack_buffer
       end
-    else
-      recv_data
+
+      if @blocks.join('').bytesize < @piece_length
+        diff = @remaining - @blocks.join('').bytesize
+        if diff < BLOCK
+          request_message(diff)
+        else
+          request_message
+        end
+      end
     end
+    recv_data
+  end
+
+  def last_piece?
+    @remaining
   end
 
   def piece_complete?
@@ -106,7 +118,7 @@ module Torrenter
   end
 
   def buffer_complete?
-    @buffer.bytesize == @length + 4
+    (@buffer.bytesize - 13) == BLOCK || @remaining
   end
 
   # will need a last piece sort of thing inserted in here
