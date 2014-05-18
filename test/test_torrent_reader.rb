@@ -36,8 +36,13 @@ class TestTorrentReader < Minitest::Test
     assert_kind_of Integer, @reader.piece_length
   end
 
-  def test_tracker_object
+  def test_url_list_contains_udp_or_http_protocols
     assert @reader.url_list.all? { |str| str.include?('http://') || str.include?("udp://") }
+  end
+
+  def test_tracker_creation
+    tracker = @reader.access_trackers.sample
+    assert_kind_of Torrenter::HTTPTracker || Torrenter::UDPTracker, tracker
   end
 end
 
