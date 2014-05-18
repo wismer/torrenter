@@ -18,7 +18,6 @@ module Torrenter
       end
 
       @bytes_remaining = total_file_size - File.size($data_dump)
-      puts "#{@master_index.count(:downloaded)} pieces are downloaded already."
     end
 
     def verified?(loc, piece)
