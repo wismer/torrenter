@@ -88,7 +88,7 @@ module Torrenter
         system('clear')
         puts "#{download_bar} \n Downloading #{$data_dump[/(.+)(?=torrent-data)/]} at #{real} KB/sec with #{pieces_left} pieces left to download"
         puts "and #{data_remaining} MB remaining"
-      end      
+      end
     end
 
     def remaining
@@ -159,16 +159,13 @@ module Torrenter
       (@master_index.count(type).fdiv(@master_index.size) * 100).round
     end
 
-    def stop_downloading
-      @peers.each { |peer| peer.piece_index.map { |piece| piece = :downloaded} }
-    end
-
     def seperate_data_dump_into_files
-      if multiple_files?
-        offset = 0  
-        folder =  $data_dump[/.+(?=\.torrent-data)/] || FileUtils.mkdir($data_dump[/.+(?=\.torrent-data)/]).join
+      folder = $data_dump[/.+(?=\.torrent-data)/]
 
-        @file_list.each do |file|
+      if multiple_files?
+        offset = 0
+
+        file_list.each do |file|
 
           length =  file['length']
           filename = file['path'].pop
@@ -180,11 +177,11 @@ module Torrenter
           end
 
           File.open("#{folder}/#{filename}", 'a+') { |data| data << IO.read($data_dump, length, offset) }
-          
           offset += length
         end
       else
-        File.open("#{folder}/#{@file_list['name']}", 'w') { |data| data << File.read($data_dump) }
+        FileUtils.mkdir("#{folder}")
+        File.open("#{folder}/#{file_list['name']}", 'w') { |data| data << File.read($data_dump) }
       end
       File.delete($data_dump)
     end
@@ -194,7 +191,7 @@ module Torrenter
     end
 
     def multiple_files?
-      @file_list.is_a?(Array)
+      file_list.is_a?(Array)
     end
   end
 end
