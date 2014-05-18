@@ -16,6 +16,10 @@ module Torrenter
         end
     end
 
+    def connect_interval
+      @response['min_interval']
+    end
+
     def address_hashes
       @response['peers']
     end
