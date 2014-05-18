@@ -3,7 +3,7 @@ module Torrenter
     include Torrenter
 
     attr_reader :status, :peer_state, :info_hash, :piece_length, :blocks, :buffer, :index
-    attr_accessor :piece_index
+    attr_accessor :piece_index, :remaining
 
     def initialize(ip, port, info_hash, piece_length)
       @ip           = ip
@@ -12,10 +12,6 @@ module Torrenter
       @piece_length = piece_length
       @buffer       = ''
       @blocks       = []
-    end
-
-    def full_piece?
-      piece_data.size == @piece_length
     end
 
     def piece_data
