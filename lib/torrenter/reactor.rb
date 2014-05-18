@@ -1,11 +1,13 @@
 module Torrenter
   class Reactor < Torrenter::TorrentReader
     # include Torrenter
-    attr_accessor :master_index, :bytes_remaining
+    attr_accessor :master_index
     def initialize(peers, stream)
       super(stream)
       @peers         = peers
       @master_index  = Array.new(sha_hashes.bytesize / 20) { :free }
+      @counter = 0
+      @time = Time.now.to_i
     end
 
     def check_for_existing_data
@@ -16,8 +18,6 @@ module Torrenter
         data = IO.read($data_dump, piece_length, n * piece_length) || ''
         @master_index[n] = :downloaded if verified?(n, data)
       end
-
-      @bytes_remaining = total_file_size - File.size($data_dump)
     end
 
     def verified?(loc, piece)
@@ -37,8 +37,7 @@ module Torrenter
     def message_reactor
       if !finished?
         connect_peers
-        @counter = 0
-        @time = Time.now.to_i
+
 
         puts "You are now connected to #{active_peers.size} peers."
         loop do
