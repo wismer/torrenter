@@ -1,11 +1,11 @@
 module Torrenter
   class Reactor < Torrenter::TorrentReader
     # include Torrenter
-    attr_accessor :master_index
+    attr_accessor :master_index, :bytes_remaining
     def initialize(peers, stream)
       super(stream)
-      @peers        = peers
-      @master_index = Array.new(sha_hashes.bytesize / 20) { :free }
+      @peers         = peers
+      @master_index  = Array.new(sha_hashes.bytesize / 20) { :free }
     end
 
     def check_for_existing_data
@@ -14,13 +14,14 @@ module Torrenter
 
       0.upto(@master_index.size - 1) do |n|
         data = IO.read($data_dump, piece_length, n * piece_length) || ''
-        @master_index[n] = :downloaded if piece_match?(n, data)
+        @master_index[n] = :downloaded if verified?(n, data)
       end
 
+      @bytes_remaining = total_file_size - File.size($data_dump)
       puts "#{@master_index.count(:downloaded)} pieces are downloaded already."
     end
 
-    def piece_match?(loc, piece)
+    def verified?(loc, piece)
       Digest::SHA1.digest(piece) == sha_hashes[loc * 20..(loc * 20) + 19]
     end
 
@@ -36,14 +37,14 @@ module Torrenter
 
     def message_reactor
       if !finished?
-
         connect_peers
         @counter = 0
         @time = Time.now.to_i
+
         puts "You are now connected to #{active_peers.size} peers."
         loop do
           break if finished?
-          
+
           if Time.now.to_i - @time == 1
             @counter = 0
           end
@@ -62,13 +63,15 @@ module Torrenter
               @counter += current
             end
 
-            if peer.full_piece? && piece_match?(peer.index, peer.piece_data)
-              # piece gets committed to the data dump
-              pack_piece(peer)
-              # pick new pieces
-              index_select(peer)
-              # request the next piece
-              peer.request_piece(@master_index)
+            if peer.index
+              if verified?(peer.index, peer.piece_data)
+                # piece gets committed to the data dump
+                pack_piece(peer)
+                # pick new pieces
+                index_select(peer)
+                # request the next piece
+                peer.request_piece(@master_index)
+              end
             end
           end
 
@@ -81,7 +84,11 @@ module Torrenter
           end
         end
       end
-      seperate_data_dump_into_files if @master_index.all? { |x| x == :downloaded }
+      seperate_data_dump_into_files
+    end
+
+    def remaining
+      total_file_size - File.size($data_dump)
     end
 
     def data_remaining
