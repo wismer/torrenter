@@ -3,13 +3,13 @@ require 'digest/sha1'
 require 'bencode'
 require 'fileutils'
 require 'pry'
-# require 'torrenter/message/messager'
-# require 'torrenter/message/message_types'
-# require 'torrenter/peer'
-# require 'torrenter/reactor'
-# require 'torrenter/torrent_reader'
-# require 'torrenter/http_tracker'
-# require 'torrenter/udp_tracker'
+require 'torrenter/message/messager'
+require 'torrenter/message/message_types'
+require 'torrenter/peer'
+require 'torrenter/torrent_reader'
+require 'torrenter/reactor'
+require 'torrenter/http_tracker'
+require 'torrenter/udp_tracker'
 
 # reader just reads the torrent file
 # trackers just get peer ips and ports
@@ -25,16 +25,34 @@ module Torrenter
       stream  = BEncode.load_file(file)
       torrent_file = Torrenter::TorrentReader.new(stream)
       trackers = torrent_file.access_trackers
+
+      # returns an array of initialized UDP and/or HTTP Tracker class objects
+
       loop do
-        @torrent = trackers.shift
-        @torrent.connect
-        break if @torrent.connected?
+        @tracker = trackers.shift
+        if @tracker
+          begin
+            Timeout::timeout(10) { @tracker.connect }
+          rescue Timeout::Error
+            puts 'Tracker not responding. Trying next.'
+          end
+        end
+        
+        if @tracker.connected?
+          break
+        elsif trackers.empty?
+          raise 'Trackers non-responsive'
+        end
       end
 
-      @peers = @torrent.bound_peers
-      reactor = Reactor.new(@peers, stream)
+      peers = @tracker.bound_peers
+      reactor = Reactor.new(peers, stream)
       reactor.check_for_existing_data
-      reactor.message_reactor
+      unless reactor.finished?
+        reactor.message_reactor
+      else
+        reactor.unpack_data
+      end
     end
   end
 end
