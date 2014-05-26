@@ -1,8 +1,6 @@
 Torrenter
 =========
 
-please note! Currently broken, in process of being refactored!
-------
 
 
 
