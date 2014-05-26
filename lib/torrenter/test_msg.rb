@@ -1,14 +1,12 @@
 module Torrenter
   # KEEP_ALIVE = "\x00\x00\x00\x00"
   # BLOCK = 2**14
-  # these methods get mixed in with the Peer class as a way to help
+  # these methods get mixed in with the Peer class as a way to help 
   # organize and parse the byte-encoded data. The intention is to shorten
   # and shrink the complexity of the Peer class.
   # the following methods are responsible solely for data retrieval and data transmission
 
-  def state(master_index, remaining, &block)
-    @remaining = remaining
-
+  def state(master_index)
     recv_data if @buffer.size <= 3
     if @buffer[4].nil?
       @buffer.slice!(0..3) if @buffer[0..3] == KEEP_ALIVE
@@ -23,10 +21,11 @@ module Torrenter
       when INTERESTED
         @buffer = ''
 
+
         return :interested
       when PIECE
-        process_piece { block.call @blocks.join(''), @index }
-      when CHOKE
+        process_piece
+      when CHOKE      
         choke_message
       when HANDSHAKE
         process_handshake
@@ -34,20 +33,12 @@ module Torrenter
     end
   end
 
-  def completed?
-    piece_data.bytesize == @piece_length || piece_data.bytesize == @remaining
-  end
-
-  def piece_data
-    @blocks.join('')
-  end
-
   def choke_message
     @peer_state = false
   end
 
   def clear_msg
-    @buffer.slice!(0..@length + 3)
+    @buffer.slice!(0..@length + 3)  
   end
 
   def request_message(bytes=BLOCK)
@@ -85,23 +76,18 @@ module Torrenter
     @buffer.bytesize >= @length + 4
   end
 
-  def process_piece(&block)
-    binding.pry if @length < BLOCK
+  def process_piece
     if buffer_length?
       if buffer_complete?
         pack_buffer
       end
 
-      if @blocks.join('').bytesize < @piece_length
-        diff = @remaining - @blocks.join('').bytesize
-        if diff < BLOCK
-          request_message(diff)
-        else
-          request_message
-        end
+      diff = @remaining - @blocks.join('').bytesize
+      if diff < BLOCK
+        request_message(diff)
+      else
+        request_message
       end
-
-      block.call if completed?
     end
     recv_data
   end
@@ -111,23 +97,39 @@ module Torrenter
     @piece_index[@index] = :downloaded
   end
 
+  def last_piece?
+    @remaining
+  end
+
+  def piece_complete?
+    piece_size == @piece_length
+  end
+
+  def buffer_size
+    @buffer[13..-1].bytesize
+  end
+
   def pack_buffer
     @blocks << @buffer.slice!(13..-1)
     @buffer.clear
   end
 
   def buffer_complete?
-    (@buffer.bytesize - 13) == BLOCK || (@buffer.bytesize - 13) == @length - 9
+    (@buffer.length - 13) == BLOCK || (@buffer.length - 13) == @remaining
   end
 
   # will need a last piece sort of thing inserted in here
 
+  def piece_full?
+    @blocks.join('').size == @piece_len
+  end
+
+  def piece_size
+    @blocks.join('').bytesize + (@buffer.bytesize - 13)
+  end
+
   def process_handshake
-    if hash_check?
-      @buffer.slice!(0..67)
-    else
-      @peer_state = false
-    end
+    @buffer.slice!(0..67) if hash_check?
   end
 
   def hash_check?
@@ -153,12 +155,12 @@ module Torrenter
       Timeout::timeout(5) { @buffer << @socket.recv_nonblock(bytes) }
     rescue Timeout::Error
       ''
-    rescue IO::EAGAINWaitReadable
-      ''
-    rescue *EXCEPTIONS
-      ''
     rescue Errno::ETIMEDOUT
       @peer_state = false
+    rescue *EXCEPTIONS
+      ''
+    rescue IO::EAGAINWaitReadable
+      ''
     end
   end
 end

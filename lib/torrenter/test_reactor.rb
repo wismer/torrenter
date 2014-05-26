@@ -43,45 +43,11 @@ module Torrenter
     # sends the handshake messages.
 
     def message_reactor
-      connect_peers
-
-      puts "You are now connected to #{active_peers.size} peers."
-      loop do
-        break if finished?
-
-        if Time.now.to_i - @time == 1
-          @time_counter = 0
+      @peers.each { |peer| peer.connect if active_peers.length < 8 }
+      if !finished?
+        peer.state(@master_index) do |loc, buf|
+          
         end
-
-        @time = Time.now.to_i
-
-        active_peers.each_with_index do |peer, i|
-
-          datasize = peer.current_size
-
-          state = peer.state(@master_index, remaining) do |data, i|
-            if verified?(i, data)
-              @master_index[peer.index] = :downloaded
-              @byte_counter += peer.piece_data.bytesize
-              pack_piece(peer)
-              peer.mark_complete
-              piece_select(peer)
-            end
-          end
-
-          current = peer.current_size - datasize
-          if state == :interested
-            peer.update_indices(@master_index)
-            piece_select(peer)
-          end
-
-          if current > 0
-            @time_counter += current
-          end
-        end
-        reattempt_disconnected_peer if Time.now.to_i % 30 == 0
-
-        show_status
       end
     end
 
@@ -97,8 +63,8 @@ module Torrenter
     end
 
     def piece_select(peer, limit=1)
-      # binding.pry if @master_index.count(:free) == 1
-
+      binding.pry if @master_index.count(:free) == 1
+      puts "#{peer.ip} picking a piece"
       piece_index = peer.piece_index
       @tally = tally
       index = nil
@@ -126,15 +92,18 @@ module Torrenter
       if index
         @master_index[index] = :downloading
         peer.request_piece(index)
+        p index
         return index
+      else
+        binding.pry
       end
     end
 
     def show_status
       if (Time.now.to_i - @time) == 1
         system('clear')
-        puts "#{download_bar} \n Downloading #{$data_dump[/(.+)(?=torrent-data)/]}"\
-             "at #{real} KB/sec #{data_remaining} MB remaining"\
+        puts "#{download_bar} \n Downloading #{$data_dump[/(.+)(?=torrent-data)/]} at #{real} KB/sec with #{pieces_left} pieces left to download"
+        puts "and #{data_remaining} MB remaining ------ #{active_peers.size} connected."
       end
     end
 
@@ -154,6 +123,10 @@ module Torrenter
 
     def data_remaining
       (total_file_size - @byte_counter).fdiv(1024).fdiv(1024).round(2)
+    end
+
+    def pieces_left
+      @master_index.count(:free)
     end
 
     def real
@@ -206,6 +179,41 @@ module Torrenter
 
     def pieces(type)
       (@master_index.count(type).fdiv(@master_index.size) * 100).round
+    end
+
+    def seperate_data_dump_into_files
+      folder = $data_dump[/.+(?=\.torrent-data)/]
+
+      if multiple_files?
+        offset = 0
+
+        file_list.each do |file|
+
+          length =  file['length']
+          filename = file['path'].pop
+
+          if multiple_sub_folders?(file)
+            subfolders = file['path'].join("/")
+            folder = folder + "/" + subfolders
+            FileUtils.mkdir_p("#{folder}", force: true)
+          end
+
+          File.open("#{folder}/#{filename}", 'a+') { |data| data << IO.read($data_dump, length, offset) }
+          offset += length
+        end
+      else
+        FileUtils.mkdir("#{folder}")
+        File.open("#{folder}/#{file_list['name']}", 'w') { |data| data << File.read($data_dump) }
+      end
+      File.delete($data_dump)
+    end
+
+    def multiple_sub_folders?(file)
+      file['path'].size > 1
+    end
+
+    def multiple_files?
+      file_list.is_a?(Array)
     end
   end
 end

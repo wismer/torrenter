@@ -2,8 +2,8 @@ module Torrenter
   class Peer
     include Torrenter
 
-    attr_reader :status, :peer_state, :info_hash, :piece_length, :blocks, :buffer, :index
-    attr_accessor :piece_index, :remaining
+    attr_reader :status, :peer_state, :info_hash, :piece_length, :blocks, :buffer, :ip
+    attr_accessor :piece_index, :remaining, :index
 
     def initialize(ip, port, info_hash, piece_length)
       @ip           = ip
@@ -12,6 +12,12 @@ module Torrenter
       @piece_length = piece_length
       @buffer       = ''
       @blocks       = []
+      @dl_rate      = 0
+      @piece_index  = []
+    end
+
+    def current_size
+      piece_data.bytesize + @buffer.bytesize
     end
 
     def piece_data
@@ -47,6 +53,10 @@ module Torrenter
 
     def connected?
       @peer_state
+    end
+
+    def update_indices(master)
+      master.each_with_index { |p,i| @piece_index[i] = p }
     end
   end
 end

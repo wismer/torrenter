@@ -1,5 +1,6 @@
 module Torrenter
   class UDPTracker < TorrentReader
+
     attr_reader :socket, :response
 
     def initialize(tracker, stream)
