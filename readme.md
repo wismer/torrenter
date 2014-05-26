@@ -21,7 +21,7 @@ and the folder for where the content files will be transported to after the down
 the download completes, the files are placed into their destination folder. After that, the dumped data
 file is removed. 
 
-Sinatra Web App
+Sinatra Web App - currently borked
 -----------------
 I added a simple sinatra web app as a sort of tool to better visualize the download of the torrent,
 courtesy of d3.js.
