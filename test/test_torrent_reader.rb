@@ -41,11 +41,8 @@ class TestTorrentReader < Minitest::Test
   end
 
   def test_tracker_creation
-    tracker = @reader.access_trackers.sample
-    assert_kind_of Torrenter::HTTPTracker || Torrenter::UDPTracker, tracker
+    @reader.access_trackers.each do |tracker|
+      assert_kind_of Torrenter::HTTPTracker || Torrenter::UDPTracker, tracker
+    end
   end
-end
-
-class TestUDPTracker < Minitest::Test
-
 end
